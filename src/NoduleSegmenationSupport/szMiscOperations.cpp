@@ -1012,16 +1012,16 @@ a small hole can alter the distance transform.  So plung them.
 */
 void
 FillBackgroundHoles(vector<unsigned char>& B,
-					int minSize,
-					int label,
-					const int* dims)
+int minSize,
+int label,
+const int* dims)
 {
-	int imageSize = dims[0]*dims[1];
+	int imageSize = dims[0] * dims[1];
 	vector<unsigned char> BP(imageSize, 0);
 	vector<int> CP(imageSize, 0);
-	for(int i=0; i<dims[2]; ++i)
+	for (int i = 0; i<dims[2]; ++i)
 	{
-		for(int j=0; j<imageSize; ++j)
+		for (int j = 0; j<imageSize; ++j)
 		{
 			BP[j] = B[i*imageSize + j];
 			CP[j] = 0;
@@ -1030,27 +1030,80 @@ FillBackgroundHoles(vector<unsigned char>& B,
 		int numClusters = ConnectedComponentAnalysisEqual(CP, BP, vcount, NeighborhoodFour, (unsigned char)0, 2, dims);
 		//int numClusters = ConnectedComponentAnalysisEqual(CP, BP, NeighborhoodFour, (unsigned char)0, 2, dims);
 
-		vector<int> bFill(numClusters+1, true); //clusters that touch image boundaries will not be filled.
+		vector<int> bFill(numClusters + 1, true); //clusters that touch image boundaries will not be filled.
 		//check the four image boundary and mark with ones should be ignored.
-		for(int k=0; k<dims[1]; ++k)
+		for (int k = 0; k<dims[1]; ++k)
 		{
 			int m = GetData2(CP, 0, k, dims[0], dims[1], 0);
-			if(m > 0) bFill[m] = false;
-			m = GetData2(CP, dims[0]-1, k, dims[0], dims[1], 0);
-			if(m > 0) bFill[m] = false;
+			if (m > 0) bFill[m] = false;
+			m = GetData2(CP, dims[0] - 1, k, dims[0], dims[1], 0);
+			if (m > 0) bFill[m] = false;
 		}
-		for(int k=0; k<dims[0]; ++k)
+		for (int k = 0; k<dims[0]; ++k)
 		{
 			int m = GetData2(CP, k, 0, dims[0], dims[1], 0);
-			if(m > 0) bFill[m] = false;
-			m = GetData2(CP, k, dims[1]-1, dims[0], dims[1], 0);
-			if(m > 0) bFill[m] = false;
+			if (m > 0) bFill[m] = false;
+			m = GetData2(CP, k, dims[1] - 1, dims[0], dims[1], 0);
+			if (m > 0) bFill[m] = false;
 		}
-		for(int j=0; j<imageSize; ++j)
+		for (int j = 0; j<imageSize; ++j)
 		{
-			if(CP[j] && bFill[CP[j]] && vcount[CP[j]] < minSize)
+			if (CP[j] && bFill[CP[j]] && vcount[CP[j]] < minSize)
 			{
 				B[i*imageSize + j] = label;
+			}
+		}
+	}
+}
+
+/*
+A more general version. It can accomdate 3D and 4D (or higher).
+a small hole can alter the distance transform.  So plung them.
+*/
+void
+FillBackgroundHoles(
+			vector<unsigned char>& B,
+			int minSize,
+			int label,
+			int ndim,
+			const int* dims)
+{
+	int nvoxels = numberOfElements(ndim, dims);
+	int imageSize = dims[0] * dims[1];
+	vector<unsigned char> BP(imageSize, 0);
+	vector<int> CP(imageSize, 0);
+	for (int n = 0; n < nvoxels; n += imageSize)
+	{
+		for (int i = 0; i < imageSize; ++i)
+		{
+			BP[i] = B[n + i];
+			CP[i] = 0;
+		}
+		vector<int> vcount;
+		int numClusters = ConnectedComponentAnalysisEqual(CP, BP, vcount, NeighborhoodFour, (unsigned char)0, 2, dims);
+		//int numClusters = ConnectedComponentAnalysisEqual(CP, BP, NeighborhoodFour, (unsigned char)0, 2, dims);
+
+		vector<int> bFill(numClusters + 1, true); //clusters that touch image boundaries will not be filled.
+		//check the four image boundary and mark with ones should be ignored.
+		for (int k = 0; k<dims[1]; ++k)
+		{
+			int m = GetData2(CP, 0, k, dims[0], dims[1], 0);
+			if (m > 0) bFill[m] = false;
+			m = GetData2(CP, dims[0] - 1, k, dims[0], dims[1], 0);
+			if (m > 0) bFill[m] = false;
+		}
+		for (int k = 0; k<dims[0]; ++k)
+		{
+			int m = GetData2(CP, k, 0, dims[0], dims[1], 0);
+			if (m > 0) bFill[m] = false;
+			m = GetData2(CP, k, dims[1] - 1, dims[0], dims[1], 0);
+			if (m > 0) bFill[m] = false;
+		}
+		for (int j = 0; j < imageSize; ++j)
+		{
+			if (CP[j] && bFill[CP[j]] && vcount[CP[j]] < minSize)
+			{
+				B[n + j] = label;
 			}
 		}
 	}

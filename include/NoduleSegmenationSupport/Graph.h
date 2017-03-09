@@ -4,8 +4,8 @@
 #include <limits>
 #include <iostream>
 
-enum VertexColor {Black, White, Gray};
-enum EdgeType{Tree, Back, Forward, Cross};
+enum VertexColor {Black, White, Gray, Red, Green, Blue};
+enum EdgeType{Tr, Back, Forward, Cross};
 
 template<class T>
 class Edge;
@@ -22,28 +22,54 @@ public:
 		f = 0;
 		pi = NULL;
 	}
-	~Vertex()
-	{
-		for(int i=0; i<aList.size(); ++i)
-		{
-			delete aList[i];
-		}
-	}
 
 	void Add(Edge<T>* edge)
 	{
 		aList.push_back(edge);
+	}
+	bool Remove(Vertex<T>* v)
+	{
+		Edge<T>* e = findEdge(v);
+		if (e != NULL)
+		{
+			std::vector<Edge<T>*>::iterator it = find(aList.begin(), aList.end(), e);
+			aList.erase(it);
+			return true;
+		}
+		else
+		{
+			return false;
+		}
+	}
+
+	Edge<T>* findEdge(Vertex<T>* v)
+	{
+		for(int i=0; i<aList.size(); ++i)
+		{
+			if(aList[i]->v == v)
+			{
+				return aList[i];
+			}
+		}
+		return NULL;
 	}
 
 	void Reset()
 	{
 		color = White;
 		d = numeric_limits<float>::infinity();
+		f = numeric_limits<float>::infinity();
 		pi = NULL;
+		//children.clear();
+	}
+	bool operator ==(Vertex<T>* n)
+	{
+		return key == n->key;
 	}
 
 	T key;
 	std::vector<Edge<T>*> aList;
+	//std::vector<Vertex<T>*> children;
 	VertexColor color;
 	float d;
 	float f;
@@ -54,17 +80,38 @@ template <class T>
 class Edge
 {
 public:
-	Edge(Vertex<T>* u=0, Vertex<T>* v=0, float w=0, EdgeType type = Tree)
+	Edge(Vertex<T>* u=0, Vertex<T>* v=0, float w=0, EdgeType type = Tr)
 	{
 		this->u = u;
 		this->v = v;
 		this->w = w;
 		this->type = type;
 	}
+	bool operator ==(Edge<T>* n)
+	{
+		return u == n->u && v == n->v;
+	}
+	bool operator <(Edge<T>* n)
+	{
+		return w < n->w;
+	}
+	virtual ~Edge() {}
 	Vertex<T>* u;
 	Vertex<T>* v;
 	float w;
 	EdgeType type;
+};
+
+template <class T>
+class FlowEdge: public Edge<T>
+{
+public:
+	FlowEdge(Vertex<T>* u=0, Vertex<T>* v=0, float w=0, EdgeType type = Tr): Edge<T>(u, v, w, type)
+	{
+		this->flow = 0;
+	}
+	virtual ~FlowEdge() {}
+	float flow;
 };
 
 class AdjacencyMatrix
@@ -99,15 +146,6 @@ public:
 			}
 			printf("\n");
 		}
-		/*std::cout << "Adjacency Matrix:" << std::endl;
-		for(int i=0; i<N; ++i)
-		{
-			for(int j=0; j<N; ++j)
-			{
-				std::cout << Get(i,j) << " ";
-			}
-			std::cout << std::endl;
-		}*/
 	}
 	std::vector<float> GetWeights() {return weights;}
 
@@ -220,7 +258,7 @@ ReadFromFile(std::istream& in,
 		}
 		int m = (int)(ps - vkeys.begin());
 		int n = (int)(pt - vkeys.begin());
-		Edge<T>* edge = new Edge<T>(vnodes[m], vnodes[n], w);
+		Edge<T>* edge = new FlowEdge<T>(vnodes[m], vnodes[n], w);
 		vnodes[m]->Add(edge);
 		vedges.push_back(edge);
 
@@ -256,7 +294,6 @@ DFS(int k,
 	vnodes[k]->color = Gray;
 	vnodes[k]->d = time;
 	std::vector<Vertex<T>*> trace;
-	trace.push_back(vnodes[k]);
 	for(int i=0; i<adj.size(); ++i)
 	{
 		if(adj.Get(k, i)>0)
@@ -272,6 +309,32 @@ DFS(int k,
 	}
 	vnodes[k]->color = Black;
 	vnodes[k]->f = ++time;
+	trace.push_back(vnodes[k]);
+	return trace;
+}
+
+template <class T>
+std::vector<Vertex<T>*>
+DFS(Vertex<T>* src, int& time)
+{
+	time++;
+	src->color = Gray;
+	src->d = time;
+	std::vector<Vertex<T>*> trace;
+	for (int i = 0; i < src->aList.size(); ++i)
+	{
+		Edge<T>* edge = src->aList[i];
+		Vertex<T>* node = edge->v;
+		if (node->color == White)
+		{
+			node->pi = src;
+			std::vector<Vertex<T>*> trace0 = DFS(node, time);
+			trace.insert(trace.end(), trace0.begin(), trace0.end());
+		}
+	}
+	src->color = Black;
+	src->f = ++time;
+	trace.push_back(src);
 	return trace;
 }
 
@@ -339,5 +402,43 @@ GetAllVertices(const std::vector<Edge<T>*>& edges)
 	}
 	return nodes;
 }
+
+template <class T>
+Vertex<T>*
+findVertex(const std::vector<Vertex<T>*>& vertices,
+		   const T& t)
+{
+	for(int i=0; i<vertices.size(); ++i)
+	{
+		if(vertices[i]->key == t)
+		{
+			return vertices[i];
+		}
+	}
+	return NULL;
+}
+
+template <class T>
+void
+reverseEdges(vector<Vertex<T>*>& vnodes)
+{
+	vector<Edge<T>*> edges;
+	map<Vertex<T>*, int> vmap;
+	for (int i = 0; i < vnodes.size(); ++i)
+	{
+		edges.insert(edges.end(), vnodes[i]->aList.begin(), vnodes[i]->aList.end());
+		vnodes[i]->aList.clear();
+		vmap[vnodes[i]] = i;
+	}
+	for (int i = 0; i < edges.size(); ++i)
+	{
+		Vertex<T>* u = edges[i]->u;
+		Vertex<T>* v = edges[i]->v;
+		edges[i]->v = u;
+		edges[i]->u = v;
+		edges[i]->u->Add(edges[i]);
+	}
+}
+
 
 #endif /* ___GRAPH_CSCI381_H___*/

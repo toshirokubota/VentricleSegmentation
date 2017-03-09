@@ -55,6 +55,28 @@ Sub2Ind(const vector<int>& vsub, int ndim, const int* dims) {
   return ind;
 }
 
+int
+Sub2Ind(const vector<int>& vsub, const vector<int>& voffset, int ndim, const int* dims) {
+	int ind = 0;
+	int stride = 1;
+	for (int i = 0; i<ndim; ++i) {
+		ind += (vsub[i] + voffset[i]) * stride;
+		stride *= dims[i];
+	}
+	return ind;
+}
+
+vector<int>
+SubWithOffset(const vector<int>& vsub, const vector<int>& voffset, int ndim, const int* dims)
+{
+	vector<int> res(ndim);
+	for (int i = 0; i < ndim; ++i)
+	{
+		res[i] = vsub[i] + voffset[i];
+	}
+	return res;
+}
+
 vector<int>
 Ind2Sub(int ind, int ndim, const int* dims) {
 

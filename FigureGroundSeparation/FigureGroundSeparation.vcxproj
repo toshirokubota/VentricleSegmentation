@@ -19,11 +19,13 @@
     <ConfigurationType>DynamicLibrary</ConfigurationType>
     <UseOfMfc>false</UseOfMfc>
     <CharacterSet>MultiByte</CharacterSet>
+    <PlatformToolset>v120</PlatformToolset>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'" Label="Configuration">
     <ConfigurationType>DynamicLibrary</ConfigurationType>
     <UseOfMfc>false</UseOfMfc>
     <CharacterSet>MultiByte</CharacterSet>
+    <PlatformToolset>v120</PlatformToolset>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
   <ImportGroup Label="ExtensionSettings">
@@ -81,7 +83,7 @@
     <Link>
       <AdditionalOptions>/export:"mexFunction" %(AdditionalOptions)</AdditionalOptions>
       <AdditionalDependencies>odbc32.lib;odbccp32.lib;libmx.lib;libmex.lib;libmat.lib;%(AdditionalDependencies)</AdditionalDependencies>
-      <OutputFile>..\bin\FigureGroundSeparation.dll</OutputFile>
+      <OutputFile>..\bin\FigureGroundSeparationNew.dll</OutputFile>
       <SuppressStartupBanner>true</SuppressStartupBanner>
       <AdditionalLibraryDirectories>C:\Program Files %28x86%29\MATLAB\R2011b\extern\lib\win32\microsoft;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <ProgramDatabaseFile>.\Release/CARSSizeFeatures.pdb</ProgramDatabaseFile>
@@ -142,8 +144,7 @@
   <ItemGroup>
     <ClCompile Include="figureGroundSeparation.cpp" />
     <ClCompile Include="..\src\NoduleSegmenationSupport\szDistanceTransform.cpp" />
-    <ClCompile Include="..\src\NoduleSegmenationSupport\szExtractForeground.cpp" />
-    <ClCompile Include="..\src\NoduleSegmenationSupport\szFigureGroundSeparation.cpp" />
+    <ClCompile Include="..\src\NoduleSegmenationSupport\szReactionDiffusion.cpp" />
     <ClCompile Include="..\src\NoduleSegmenationSupport\szFindSeeds.cpp" />
     <ClCompile Include="..\src\NoduleSegmenationSupport\szMexUtility.cpp" />
     <ClCompile Include="..\src\NoduleSegmenationSupport\szMiscOperations.cpp" />
@@ -154,7 +155,7 @@
     <ClInclude Include="..\include\NoduleSegmenationSupport\szDefaultParam.h" />
     <ClInclude Include="..\include\NoduleSegmenationSupport\szDistanceTransform.h" />
     <ClInclude Include="..\include\NoduleSegmenationSupport\szExtractForeground.h" />
-    <ClInclude Include="..\include\NoduleSegmenationSupport\szFigureGroundSeparation.h" />
+    <ClInclude Include="..\include\NoduleSegmenationSupport\szReactionDiffusion.h" />
     <ClInclude Include="..\include\NoduleSegmenationSupport\szFindSeeds.h" />
     <ClInclude Include="..\include\NoduleSegmenationSupport\szMexUtility.h" />
     <ClInclude Include="..\include\NoduleSegmenationSupport\szMexUtilityTemplate.h" />

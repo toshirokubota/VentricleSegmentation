@@ -130,6 +130,14 @@ FillBackgroundHoles(vector<unsigned char>& B,
 					int label,
 					const int* dims);
 
+void
+FillBackgroundHoles(
+					vector<unsigned char>& B,
+					int minSize,
+					int label,
+					int ndim,
+					const int* dims);
+
 float
 trilinearInterpolation(const vector<float>& D,
 					   float x, 

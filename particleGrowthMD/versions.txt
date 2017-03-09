@@ -1,0 +1,28 @@
+> particleGrowthMDv2C.cpp
+
+Use isotropic region growth from each core and competition based on the generation number for coloring.
+
+> particleGrowthMDv2D.cpp
+When a component is shared by multiple cores, it uses a measure - bonding, to determine which core will
+occupy the component.
+The bonding of two components is the ratio between shared adjacent voxels / total combined voxels.
+
+> particleGrowthMDv2E.cpp
+Implements cluster splitting so that each cluster has at most one descendent.
+Having a problem with exponential increase in the number of clusters due to splitting...
+
+> particleGrowthMDv3.cpp
+Major update. 
+Voxels link to inner voxels at steepest ascent in distance map.
+When no link exists in its 4-neighbor, establish links, if any, with neighbor voxels with the same generation.
+This will hopefully constructs a DAG, that allow us to cluster voxels in a meaningful way.
+
+> particleGrowthMDv3B.cpp
+The coloring routine also calculates the distance between cores and the bottleneck width -- the maximum distance
+among boundary voxels.
+
+> particleGrowthMDv3C.cpp
+Try to implement convexity measure using growth-iteration vs. L1 distance.
+
+> particleGrowthMDv3D.cpp
+Two adjacent regions are merged if two cores are included within each other's sphere.

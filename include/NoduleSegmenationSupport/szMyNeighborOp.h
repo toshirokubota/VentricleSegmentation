@@ -61,7 +61,10 @@ makeNeighborhood10(int ndim, const int* dims);
 
 vector<int>
 MakeFourNeighborhood(int ndim,
-                     const int* dims);
+const int* dims);
+
+vector<vector<int>>
+MakeFourNeighborhood(int ndim);
 
 vector<int>
 MakeCausalFourNeighborhood(int ndim,
@@ -71,9 +74,15 @@ vector<int>
 MakeEightNeighborhood(int ndim,
                      const int* dims);
 
+vector<vector<int>>
+MakeEightNeighborhood(int ndim);
+
 vector<int>
 MakeNineNeighborhood(int ndim,
                      const int* dims);
+
+vector<vector<int>>
+MakeNineNeighborhood(int ndim);
 
 vector<int>
 MakeAntiCausalNeighborhood(int ndim,

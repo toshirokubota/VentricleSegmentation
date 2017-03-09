@@ -22,6 +22,19 @@ template<class Item>
 bool
 SetData(vector<Item>& A, int i, const Item val);
 
+//4D data access
+template<class Item>
+Item
+GetData4(const vector<Item>& A, int x, int y, int z, int t, int xD, int yD, int zD, int tD, bool& success);
+
+template<class Item>
+Item
+GetData4(const vector<Item>& A, int x, int y, int z, int t, int xD, int yD, int zD, int tD, Item defval);
+
+template<class Item>
+bool
+SetData4(vector<Item>& A, int x, int y, int z, int t, int xD, int yD, int zD, int tD, const Item val);
+
 //3D data access
 template<class Item>
 Item

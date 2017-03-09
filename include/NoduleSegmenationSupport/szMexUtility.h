@@ -47,6 +47,12 @@ Ind2Sub(vector<int>& vsub, int ind, int ndim, const int* dims);
 int
 Sub2Ind(const vector<int>& vsub, int ndim, int* dims);
 
+int
+Sub2Ind(const vector<int>& vsub, const vector<int>& voffset, int ndim, const int* dims);
+
+vector<int>
+SubWithOffset(const vector<int>& vsub, const vector<int>& voffset, int ndim, const int* dims);
+
 vector<int>
 Ind2Sub(int ind, int ndim, int* dims);
 

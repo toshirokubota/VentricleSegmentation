@@ -1,0 +1,5 @@
+> coreDescentTest.cpp
+
+From a core obtained by particleGrowthMD (v3D), grow the region by going down strictly the distance map.
+
+

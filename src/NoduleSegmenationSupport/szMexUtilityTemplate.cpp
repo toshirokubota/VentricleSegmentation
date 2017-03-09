@@ -41,6 +41,32 @@ SetData(vector<Item>& A, int i, const Item val) {
 	}
 }
 
+
+//4D data access
+template<class Item>
+Item
+GetData4(const vector<Item>& A, int x, int y, int z, int t, int xD, int yD, int zD, int tD, bool& success) {
+	if (x >= 0 && x<xD && y >= 0 && y<yD && z >= 0 && z<zD && t >= 0 && t<tD) {
+		success = true;
+		return A[t*xD*yD*zD + z*xD*yD + y*xD + x];
+	}
+	else {
+		success = false;
+		return (Item)0;
+	}
+}
+
+template<class Item>
+Item
+GetData4(const vector<Item>& A, int x, int y, int z, int t, int xD, int yD, int zD, int tD, Item defval) {
+	if (x >= 0 && x<xD && y >= 0 && y<yD && z >= 0 && z<zD && t >= 0 && t<tD) {
+		return A[t*xD*yD*zD + z*xD*yD + y*xD + x];
+	}
+	else {
+		return defval;
+	}
+}
+
 //3D data access
 template<class Item>
 Item
@@ -63,6 +89,19 @@ GetData3(const vector<Item>& A, int x, int y, int z, int xD, int yD, int zD, Ite
 	}
 	else {
 		return defval;
+	}
+}
+
+
+template<class Item>
+bool
+SetData4(vector<Item>& A, int x, int y, int z, int t, int xD, int yD, int zD, int tD, Item val) {
+	if (x >= 0 && x<xD && y >= 0 && y<yD && z >= 0 && z<zD && t>=0 && t<tD) {
+		A[t*xD*yD*zD + z*xD*yD + y*xD + x] = val;
+		return true;
+	}
+	else {
+		return false;
 	}
 }
 
