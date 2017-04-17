@@ -27,7 +27,7 @@ using namespace std;
 #include <Graph.h>
 #include <GraphFactory.h>
 
-//bool _EightNeighbor = false;
+bool _EightNeighbor = false;
 
 struct CoreParticle
 {
@@ -56,7 +56,6 @@ struct CoreParticle
 	set<CoreParticle*> ascendents;
 	set<CoreParticle*> descendents;
 	vector<CoreParticle*> neighbors;
-	vector<CoreParticle*> neighbors8;
 	CoreParticle* pi; //path from the core
 };
 
@@ -277,7 +276,10 @@ const int* dims)
 	}
 	NeighborhoodFactory& nfactory = NeighborhoodFactory::getInstance(ndim);
 	vector<vector<int>> nbh = nfactory.neighbor4;
-	vector<vector<int>> nbh8 = nfactory.neighbor8;
+	if (_EightNeighbor)
+	{
+		nbh = nfactory.neighbor8;
+	}
 
 	for (int i = 0; i < particles.size(); ++i)
 	{
@@ -291,17 +293,6 @@ const int* dims)
 				if (mp[idx] != NULL)
 				{
 					p->neighbors.push_back(mp[idx]);
-				}
-			}
-		}
-		for (int n = 0; n < nbh8.size(); ++n)
-		{
-			if (NeighborCheck(sub.begin(), nbh8[n].begin(), ndim, dims))
-			{
-				int idx = Sub2Ind(sub, nbh8[n], ndim, dims);
-				if (mp[idx] != NULL)
-				{
-					p->neighbors8.push_back(mp[idx]);
 				}
 			}
 		}
@@ -387,6 +378,77 @@ propagateDescendency(vector<CoreParticle*>& P)
 	}
 }
 
+inline int COMPARE(int a, int b)
+{
+	return a > b ? 1 : (a < b ? -1 : 0);
+}
+
+int neighborScore(CoreParticle* p, CoreParticle* q)
+{
+	int x = COMPARE(p->x, q->x) + 1;
+	int y = COMPARE(p->y, q->y) + 1;
+	int z = COMPARE(p->z, q->z) + 1;
+	int t = COMPARE(p->t, q->t) + 1;
+
+	return x + 3 * y + 9 * z + 27 * t;
+}
+
+void
+simplifyDescendents(vector<CoreParticle*>& particles)
+{
+	map<CoreParticle*, int> score;
+	for (int i = 0; i < particles.size(); ++i)
+	{
+		if (particles[i]->descendents.size() > 1)
+		{
+			score[particles[i]] = 0;
+		}
+		else
+		{
+			score[particles[i]] = 1;
+		}
+	}
+	while (true)
+	{
+		bool bChanged = false;
+		for (int i = 0; i < particles.size(); ++i)
+		{
+			CoreParticle* p = particles[i]; 
+			if (p->descendents.size() > 1)
+			{
+				vector<pair<int,CoreParticle*>> toremove;
+				for (set<CoreParticle*>::iterator it = p->descendents.begin(); it != p->descendents.end(); ++it)
+				{
+					CoreParticle* q = *it;
+					for (set<CoreParticle*>::iterator jt = q->ascendents.begin(); jt != q->ascendents.end(); ++jt)
+					{
+						CoreParticle* r = *jt;
+						if (r->descendents.size() == 1) // || neighborScore(p, q) < neighborScore(r, q))
+						{
+							toremove.push_back(pair<int,CoreParticle*>(0,q));
+							break;
+						}
+						else if (neighborScore(p, q) < neighborScore(r, q))
+						{
+							toremove.push_back(pair<int, CoreParticle*>(neighborScore(p, q), q));
+							break;
+						}
+					}
+				}
+				sort(toremove.begin(), toremove.end());
+				for (int k = 0; k < Min(toremove.size(), p->descendents.size() - 1); ++k)
+				{
+					p->descendents.erase(toremove[k].second);
+					(toremove[k].second)->ascendents.erase(p);
+					bChanged = true;
+				}
+			}
+		}
+		if (bChanged == false) break;
+	}
+}
+
+
 /*
 from each surface particle, move towrad the center and establish ascendent/descendent relation.
 */
@@ -399,16 +461,24 @@ int ndim,
 const int* dims)
 {
 	vector<vector<int>> nbh = NeighborhoodFactory::getInstance(ndim).neighbor4;
+	if (_EightNeighbor)
+	{
+		nbh = NeighborhoodFactory::getInstance(ndim).neighbor8;
+	}
 
 	vector<CoreParticle*> Q;
 	for (int i = 0; i < particles.size(); ++i)
 	{
 		CoreParticle* p = particles[i];
+		//p->value = 1; //TK!!!
+		p->value = 0;
 		if (p->neighbors.size() < nbh.size())
 		{
 			Q.push_back(p);
+			p->value = 1;
 		}
 	}
+	printf("There are %d cores.\n", Q.size());
 	int gen = 1;
 	while (Q.empty() == false)
 	{
@@ -438,296 +508,30 @@ const int* dims)
 		}
 		propagateDescendency(Q);
 
-		Q.clear();
-		Q.insert(Q.end(), Q2.begin(), Q2.end());
-		gen++;
-	}
-	return particles;
-}
-
-vector<CoreParticle*>
-localGenMaximum(vector<CoreParticle*>& pmap, int ndim, const int* dims)
-{
-
-	vector<CoreParticle*> trace;
-	for (int i = 0; i < pmap.size(); ++i)
-	{
-		CoreParticle* p = pmap[i];
-		if (p == NULL) continue;
-
-		bool bMax = true;
-		for (int n = 0; n < p->neighbors8.size(); ++n)
-		{
-			CoreParticle* q = p->neighbors8[n];
-			if (p->gen < q->gen)
-			{
-				bMax = false;
-			}
-		}
-		if (bMax)
-		{
-			p->selected = true;
-			trace.push_back(p);
-		}
-	}
-	return trace;
-}
-
-vector<CoreParticle*>
-removeSpurious(vector<CoreParticle*>& cores, float thres)
-{
-	vector<vector<CoreParticle*>> cl = clusterParticles(cores);
-	vector<CoreParticle*> result;
-	vector<CoreParticle*> removed;
-	for (int i = 0; i < cl.size(); ++i)
-	{
-		set<CoreParticle*> up;
-		set<CoreParticle*> down;
-		for (int j = 0; j < cl[i].size(); ++j)
-		{
-			CoreParticle* p = cl[i][j];
-			for (int k = 0; k < p->neighbors.size(); ++k)
-			{
-				CoreParticle* q = p->neighbors[k];
-				if (q->selected == false)
-				{
-					if (q->gen >= p->gen)
-					{
-						up.insert(q);
-					}
-					else
-					{
-						down.insert(q);
-					}
-				}
-			}
-		}
-		if ((float)down.size() / ((float)up.size() + down.size()) > thres)
-		{
-			result.insert(result.end(), cl[i].begin(), cl[i].end());
-		}
-		else
-		{
-			removed.insert(removed.end(), cl[i].begin(), cl[i].end());
-		}
-	}
-	for (int i = 0; i < removed.size(); ++i)
-	{
-		cores[i]->selected = false;
-		CoreParticle* p = removed[i];
-		for (int j = 0; j < p->neighbors.size(); ++j)
-		{
-			CoreParticle* q = p->neighbors[j];
-			if (p->gen == q->gen && q->descendents.empty() == false)
-			{
-				//p->descendents.insert(q);
-				//q->ascendents.insert(p);
-			}
-		}
-	}
-
-	return result;
-}
-
-vector<CoreParticle*>
-removeSpurious2(vector<CoreParticle*>& cores, int thres)
-{
-	vector<vector<CoreParticle*>> cl = clusterParticles(cores);
-	vector<CoreParticle*> result;
-	vector<CoreParticle*> removed;
-	for (int i = 0; i < cl.size(); ++i)
-	{
-		if (cl[i][0]->descendents.empty() || cl[i].size() > thres)
-		{
-			result.insert(result.end(), cl[i].begin(), cl[i].end());
-		}
-		else
-		{
-			removed.insert(removed.end(), cl[i].begin(), cl[i].end());
-		}
-	}
-	//Not sure if we need to keep this.
-	for (int i = 0; i < removed.size(); ++i)
-	{
-		cores[i]->selected = false;
-		CoreParticle* p = removed[i];
-		for (int j = 0; j < p->neighbors.size(); ++j)
-		{
-			CoreParticle* q = p->neighbors[j];
-			if (p->gen == q->gen && q->descendents.empty() == false)
-			{
-				//p->descendents.insert(q);
-				//q->ascendents.insert(p);
-			}
-		}
-	}
-
-	return result;
-}
-
-vector<vector<CoreParticle*>>
-mergeClusters(vector<CoreParticle*>& core, vector<CoreParticle*>& mp, vector<int>& T, int ndim, const int* dims)
-{
-	vector<vector<CoreParticle*>> groups = clusterParticles(core);
-	for (int i = 0; i < mp.size(); ++i)
-	{
-		if (mp[i])
-		{
-			mp[i]->value = std::numeric_limits<float>::infinity();
-			mp[i]->label = -1;
-		}
-	}
-	for (int i = 0; i < groups.size(); ++i)
-	{
-		for (int j = 0; j < groups[i].size(); ++j)
-		{
-			groups[i][j]->label = i;
-			groups[i][j]->value = 0.0f;
-		}
-	}
-	vector<CoreParticle*> Q = core;
-	while (Q.empty() == false)
-	{
-		set<CoreParticle*> Q2;
+		simplifyDescendents(Q);
 		for (int i = 0; i < Q.size(); ++i)
 		{
 			CoreParticle* p = Q[i];
-			SetVoxel(T, p, p->label + 1, ndim, dims);
-			for (set<CoreParticle*>::iterator it = p->ascendents.begin(); it != p->ascendents.end(); ++it)
+			//distribute the value to its decendents
+			if (p->descendents.empty() == false)
 			{
-				CoreParticle* q = *it;
-				if (q->label < 0)
-				{
-					q->label = p->label;
-					q->value = p->value + 1;
-					Q2.insert(q);
-				}
-			}
-		}
-		Q.clear();
-		Q.insert(Q.end(), Q2.begin(), Q2.end());
-	}
-	//find adjacent regions
-	vector<vector<bool>> adj;
-	vector<vector<float>> dist;
-	for (int i = 0; i < groups.size(); ++i)
-	{
-		adj.push_back(vector<bool>(groups.size(), false));
-		dist.push_back(vector<float>(groups.size(), std::numeric_limits<float>::infinity()));
-	}
-	for (int i = 0; i < mp.size(); ++i)
-	{
-		if (mp[i])
-		{
-			CoreParticle* p = mp[i];
-			for (int j = 0; j < p->neighbors.size(); ++j)
-			{
-				CoreParticle* q = p->neighbors[j];
-				if (p->label >= 0 && q->label >= 0 && p->label != q->label)
-				{
-					adj[p->label][q->label] = true;
-					adj[q->label][p->label] = true;
-					dist[q->label][p->label] = Min(q->value, dist[q->label][p->label]);
-					dist[p->label][q->label] = Min(p->value, dist[p->label][q->label]);
-				}
-			}
-		}
-	}
-
-	//relable based on the bonding measure
-	vector<Node<int>*> nodes;
-	for (int i = 0; i < groups.size(); ++i)
-	{
-		nodes.push_back(makeset(i));
-	}
-	for (int i = 0; i < groups.size(); ++i)
-	{
-		for (int j = i + 1; j < groups.size(); ++j)
-		{
-			if (adj[i][j])
-			{
-				int dval = (int)(dist[j][i] + dist[i][j]);
-				printf("%d vs. %d: gen=%d, %d, dist=%d, %d\n",
-					i, j, groups[i][0]->gen, groups[j][0]->gen, (int)dist[i][j], (int)dist[j][i]);
-				if (groups[i][0]->gen > dval && groups[j][0]->gen > dval)
-				{
-					merge(nodes[i], nodes[j]);
-				}
-			}
-		}
-	}
-	vector<Node<int>*> reps = clusters(nodes);
-	vector<vector<CoreParticle*>> result(reps.size());
-	for (int i = 0; i < groups.size(); ++i)
-	{
-		int k = distance(reps.begin(), find(reps.begin(), reps.end(), findset(nodes[i])));
-		for (int j = 0; j < groups[i].size(); ++j)
-		{
-			result[k].insert(result[k].end(), groups[i].begin(), groups[i].end());
-		}
-	}
-	for (int i = 0; i < nodes.size(); ++i)
-	{
-		delete nodes[i];
-	}
-	return result;
-}
-
-void
-colorParticles3(vector<CoreParticle*>& cores, vector<CoreParticle*>& mp, vector<int>& T, int ndim, const int* dims)
-{
-	vector<vector<CoreParticle*>> cl = mergeClusters(cores, mp, T, ndim, dims);
-	for (int i = 0; i < mp.size(); ++i)
-	{
-		if (mp[i])
-		{
-			mp[i]->label = 0;
-		}
-	}
-	set<int> sgen;
-	for (int i = 0; i < cl.size(); ++i)
-	{
-		sgen.insert(cl[i][0]->gen);
-		for (int j = 0; j < cl[i].size(); ++j)
-		{
-			cl[i][j]->label = i+1;
-		}
-	}
-	vector<int> vgen;
-	vgen.insert(vgen.begin(), sgen.begin(), sgen.end());
-	sort(vgen.begin(), vgen.end());
-	for (int ig = 0; ig < vgen.size(); ++ig)
-	{
-		int gval = vgen[ig];
-		vector<CoreParticle*> Q;
-		for (int i = 0; i < cl.size(); ++i)
-		{
-			if (cl[i][0]->gen == gval)
-			{
-				Q.insert(Q.end(), cl[i].begin(), cl[i].end());
-			}
-		}
-		while (Q.empty()==false)
-		{
-			set<CoreParticle*> Q2;
-			for (int i = 0; i < Q.size(); ++i)
-			{
-				CoreParticle* p = Q[i];
-				for (set<CoreParticle*>::iterator it = p->ascendents.begin(); it != p->ascendents.end(); ++it)
-				//for (vector<CoreParticle*>::iterator it = p->neighbors.begin(); it != p->neighbors.end(); ++it)
+				float amnt = p->value / p->descendents.size();
+				for (set<CoreParticle*>::iterator it = p->descendents.begin(); it != p->descendents.end(); ++it)
 				{
 					CoreParticle* q = *it;
-					if (q->label <= 0)
-					{
-						q->label = p->label;
-						Q2.insert(q);
-					}
+					q->value += amnt;
+					//q->value = Min(q->value, amnt); //TK!!!
 				}
+				//p->value = 0.0f;
 			}
-			Q.clear();
-			Q.insert(Q.end(), Q2.begin(), Q2.end());
 		}
+
+		Q.clear();
+		Q.insert(Q.end(), Q2.begin(), Q2.end());
+
+		gen++;
 	}
+	return particles;
 }
 
 void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[])
@@ -752,13 +556,12 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[])
 		mxClassID classMode;
 		ReadScalar(cutoff, prhs[1], classMode);
 	}
-	int niter = 5;
 	if (nrhs >= 3)
 	{
 		mxClassID classMode;
 		int value;
 		ReadScalar(value, prhs[2], classMode);
-		niter = value > 0 ? true : false;
+		_EightNeighbor = value > 0 ? true : false;
 	}
 
 	int nvoxels = numberOfElements(ndimL, dimsL);
@@ -768,23 +571,6 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[])
 	vector<int> S(nvoxels, 0);
 	propagateParticles(particles, mp, S, ndimL, dimsL);
 
-	vector<CoreParticle*> trace = localGenMaximum(mp, ndimL, dimsL);
-	trace = removeSpurious2(trace, cutoff);
-
-	for (int i = 0; i < particles.size(); ++i)
-	{
-		particles[i]->label = 0;
-	}
-	vector<int> T2(mp.size(), 0);
-	colorParticles3(trace, mp, T2, ndimL, dimsL);
-	vector<int> T(mp.size(), 0);
-	for (int i = 0; i <	mp.size(); ++i)
-	{
-		if (mp[i] && mp[i]->label)
-		{
-			T[i] = mp[i]->label;
-		}
-	}
 
 	if (nlhs >= 1)
 	{
@@ -805,11 +591,21 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[])
 	}
 	if (nlhs >= 2)
 	{
-		int dims[] = { trace.size(), 7 };
-		vector<int> F(dims[0] * dims[1]);
-		for (int i = 0; i < trace.size(); ++i)
+		vector<CoreParticle*> core;
+		for (int i = 0; i < particles.size(); ++i)
 		{
-			CoreParticle* p = trace[i];
+			CoreParticle* p = particles[i];
+			//if (p->descendents.empty())
+			if(p->ascendents.size()>1)
+			{
+				core.push_back(p);
+			}
+		}
+		int dims[] = { core.size(), 7 };
+		vector<int> F(dims[0] * dims[1]);
+		for (int i = 0; i < core.size(); ++i)
+		{
+			CoreParticle* p = core[i];
 			SetData2(F, i, 0, dims[0], dims[1], p->x);
 			SetData2(F, i, 1, dims[0], dims[1], p->y);
 			SetData2(F, i, 2, dims[0], dims[1], p->z);
@@ -822,15 +618,37 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[])
 	}
 	if (nlhs >= 3)
 	{
-		plhs[2] = StoreData(T2, mxINT32_CLASS, ndimL, dimsL);
+		vector<float> F(L.size(), 0.0f);
+		for (int i = 0; i < particles.size(); ++i)
+		{
+			CoreParticle* p = particles[i];
+			SetVoxel(F, p, p->value, ndimL, dimsL);
+		}
+		plhs[2] = StoreData(F, mxSINGLE_CLASS, ndimL, dimsL);
 	}
 	if (nlhs >= 4)
 	{
-		plhs[3] = StoreData(T, mxINT32_CLASS, ndimL, dimsL);
+		plhs[3] = StoreData(S, mxINT32_CLASS, ndimL, dimsL);
 	}
 	if (nlhs >= 5)
 	{
-		plhs[4] = StoreData(S, mxINT32_CLASS, ndimL, dimsL);
+		vector<pair<int, int>> pairs;
+		for (int i = 0; i < particles.size(); ++i)
+		{
+			CoreParticle* p = particles[i];
+			for (set<CoreParticle*>::iterator it = p->descendents.begin(); it != p->descendents.end(); ++it)
+			{
+				pairs.push_back(pair<int, int>(p->id, (*it)->id));
+			}
+		}
+		int dims[] = { pairs.size(), 2 };
+		vector<int> F(dims[0] * dims[1]);
+		for (int i = 0; i < pairs.size(); ++i)
+		{
+			SetData2(F, i, 0, dims[0], dims[1], pairs[i].first);
+			SetData2(F, i, 1, dims[0], dims[1], pairs[i].second);
+		}
+		plhs[4] = StoreData(F, mxINT32_CLASS, 2, dims);
 	}
 	CoreParticleFactory::getInstance().clean();
 	mexUnlock();

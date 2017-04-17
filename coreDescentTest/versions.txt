@@ -3,3 +3,11 @@
 From a core obtained by particleGrowthMD (v3D), grow the region by going down strictly the distance map.
 
 
+> localGenMaximum.cpp
+
+Use local maximum of the growth generation (region growth from the surface toward inside) to extract cores.
+
+> makeGraphStructure.cpp
+
+Construct a tree from the growth order (captured in ascendents and descendents).
+

@@ -30,6 +30,8 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "particleGrowthMD", "particl
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "coreDescentTest", "coreDescentTest\coreDescentTest.vcxproj", "{B1E078B2-58D4-43B3-89A7-2A4640D7594B}"
 EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "surfaceCutting", "surfaceCutting\surfaceCutting.vcxproj", "{87A68DE4-CA48-4920-ACF9-A44E5399C2E6}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Win32 = Debug|Win32
@@ -122,6 +124,12 @@ Global
 		{B1E078B2-58D4-43B3-89A7-2A4640D7594B}.Release|Win32.ActiveCfg = Release|Win32
 		{B1E078B2-58D4-43B3-89A7-2A4640D7594B}.Release|Win32.Build.0 = Release|Win32
 		{B1E078B2-58D4-43B3-89A7-2A4640D7594B}.Release|x64.ActiveCfg = Release|Win32
+		{87A68DE4-CA48-4920-ACF9-A44E5399C2E6}.Debug|Win32.ActiveCfg = Debug|Win32
+		{87A68DE4-CA48-4920-ACF9-A44E5399C2E6}.Debug|Win32.Build.0 = Debug|Win32
+		{87A68DE4-CA48-4920-ACF9-A44E5399C2E6}.Debug|x64.ActiveCfg = Debug|Win32
+		{87A68DE4-CA48-4920-ACF9-A44E5399C2E6}.Release|Win32.ActiveCfg = Release|Win32
+		{87A68DE4-CA48-4920-ACF9-A44E5399C2E6}.Release|Win32.Build.0 = Release|Win32
+		{87A68DE4-CA48-4920-ACF9-A44E5399C2E6}.Release|x64.ActiveCfg = Release|Win32
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

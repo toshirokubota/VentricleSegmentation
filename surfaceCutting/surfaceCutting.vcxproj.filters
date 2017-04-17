@@ -15,12 +15,6 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="..\src\NoduleSegmenationSupport\szDistanceTransform.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="..\src\NoduleSegmenationSupport\szDistanceTransformNonIsotropic.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="..\src\NoduleSegmenationSupport\szMexUtility.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
@@ -30,7 +24,13 @@
     <ClCompile Include="..\src\NoduleSegmenationSupport\szMyNeighborOp.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="makeGraphStructureV2.cpp">
+    <ClCompile Include="CoreParticleUtil.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="CoreParticlePropagation.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="cutByPlaneFromInflection.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
@@ -39,9 +39,6 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="..\include\NoduleSegmenationSupport\szDefaultParam.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="..\include\NoduleSegmenationSupport\szDistanceTransform.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="..\include\NoduleSegmenationSupport\szMexUtility.h">
@@ -57,6 +54,21 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="..\include\NoduleSegmenationSupport\szParticle.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="CoreParticle.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="NeighborhoodND.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="CoreParticleUtil.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="CoreParticlePropagation.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="CoreParticleUtilTemplate.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

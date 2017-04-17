@@ -11,10 +11,10 @@
     </ProjectConfiguration>
   </ItemGroup>
   <PropertyGroup Label="Globals">
-    <ProjectGuid>{B1E078B2-58D4-43B3-89A7-2A4640D7594B}</ProjectGuid>
-    <RootNamespace>coreDescentTest</RootNamespace>
+    <ProjectGuid>{87A68DE4-CA48-4920-ACF9-A44E5399C2E6}</ProjectGuid>
+    <RootNamespace>surfaceCutting</RootNamespace>
     <Keyword>Win32Proj</Keyword>
-    <ProjectName>coreDescentTest</ProjectName>
+    <ProjectName>surfaceCutting</ProjectName>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'" Label="Configuration">
@@ -50,7 +50,7 @@
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <ClCompile>
       <Optimization>Disabled</Optimization>
-      <AdditionalIncludeDirectories>..\include;..\include\NoduleSegmenationSupport;C:\Program Files %28x86%29\MATLAB\R2011b\extern\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>.;..\include;..\include\NoduleSegmenationSupport;C:\Program Files %28x86%29\MATLAB\R2011b\extern\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <PreprocessorDefinitions>WIN32;_DEBUG;_WINDOWS;_USRDLL;FREE_GROWTH_CHECK_EXPORTS;MEX_DLL;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <MinimalRebuild>true</MinimalRebuild>
       <BasicRuntimeChecks>EnableFastChecks</BasicRuntimeChecks>
@@ -63,7 +63,7 @@
     <Link>
       <AdditionalOptions>/export:"mexFunction" %(AdditionalOptions)</AdditionalOptions>
       <AdditionalDependencies>odbc32.lib;odbccp32.lib;libmx.lib;libmex.lib;libmat.lib;%(AdditionalDependencies)</AdditionalDependencies>
-      <OutputFile>C:\Users\kubota\Documents\MATLAB\Geisinger\coreDescentTest.dll</OutputFile>
+      <OutputFile>C:\Users\kubota\Documents\MATLAB\Geisinger\surfaceCutting.dll</OutputFile>
       <AdditionalLibraryDirectories>C:\Program Files %28x86%29\MATLAB\R2011b\extern\lib\win32\microsoft;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <SubSystem>Windows</SubSystem>
@@ -75,7 +75,7 @@
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <ClCompile>
-      <AdditionalIncludeDirectories>..\include;..\include\NoduleSegmenationSupport;C:\Program Files %28x86%29\MATLAB\R2011b\extern\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>.;..\include;..\include\NoduleSegmenationSupport;C:\Program Files %28x86%29\MATLAB\R2011b\extern\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <PreprocessorDefinitions>WIN32;NDEBUG;_WINDOWS;_USRDLL;FREE_GROWTH_CHECK_EXPORTS;MEX_DLL;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <RuntimeLibrary>MultiThreadedDLL</RuntimeLibrary>
       <PrecompiledHeader>
@@ -86,7 +86,7 @@
     <Link>
       <AdditionalOptions>/export:"mexFunction" %(AdditionalOptions)</AdditionalOptions>
       <AdditionalDependencies>odbc32.lib;odbccp32.lib;libmx.lib;libmex.lib;libmat.lib;%(AdditionalDependencies)</AdditionalDependencies>
-      <OutputFile>..\bin\coreDescentTest.dll</OutputFile>
+      <OutputFile>..\bin\surfaceCutting.dll</OutputFile>
       <AdditionalLibraryDirectories>C:\Program Files %28x86%29\MATLAB\R2011b\extern\lib\win32\microsoft;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <SubSystem>Windows</SubSystem>
@@ -99,22 +99,26 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClCompile Include="..\src\NoduleSegmenationSupport\szDistanceTransform.cpp" />
-    <ClCompile Include="..\src\NoduleSegmenationSupport\szDistanceTransformNonIsotropic.cpp" />
     <ClCompile Include="..\src\NoduleSegmenationSupport\szMexUtility.cpp" />
     <ClCompile Include="..\src\NoduleSegmenationSupport\szMiscOperations.cpp" />
     <ClCompile Include="..\src\NoduleSegmenationSupport\szMyNeighborOp.cpp" />
-    <ClCompile Include="makeGraphStructureV2.cpp" />
+    <ClCompile Include="CoreParticlePropagation.cpp" />
+    <ClCompile Include="CoreParticleUtil.cpp" />
+    <ClCompile Include="cutByPlaneFromInflection.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\include\NoduleSegmenationSupport\mexFileIO.h" />
     <ClInclude Include="..\include\NoduleSegmenationSupport\szDefaultParam.h" />
-    <ClInclude Include="..\include\NoduleSegmenationSupport\szDistanceTransform.h" />
     <ClInclude Include="..\include\NoduleSegmenationSupport\szMexUtility.h" />
     <ClInclude Include="..\include\NoduleSegmenationSupport\szMexUtilityTemplate.h" />
     <ClInclude Include="..\include\NoduleSegmenationSupport\szMiscOperations.h" />
     <ClInclude Include="..\include\NoduleSegmenationSupport\szMyNeighborOp.h" />
     <ClInclude Include="..\include\NoduleSegmenationSupport\szParticle.h" />
+    <ClInclude Include="CoreParticle.h" />
+    <ClInclude Include="CoreParticlePropagation.h" />
+    <ClInclude Include="CoreParticleUtil.h" />
+    <ClInclude Include="CoreParticleUtilTemplate.h" />
+    <ClInclude Include="NeighborhoodND.h" />
   </ItemGroup>
   <ItemGroup>
     <None Include="ReadMe.txt" />
