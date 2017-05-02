@@ -99,8 +99,10 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="..\src\NoduleSegmenationSupport\szConvexHullFillNew.cpp" />
     <ClCompile Include="..\src\NoduleSegmenationSupport\szDistanceTransform.cpp" />
     <ClCompile Include="..\src\NoduleSegmenationSupport\szDistanceTransformNonIsotropic.cpp" />
+    <ClCompile Include="..\src\NoduleSegmenationSupport\szGeometry.cpp" />
     <ClCompile Include="..\src\NoduleSegmenationSupport\szMexUtility.cpp" />
     <ClCompile Include="..\src\NoduleSegmenationSupport\szMiscOperations.cpp" />
     <ClCompile Include="..\src\NoduleSegmenationSupport\szMyNeighborOp.cpp" />

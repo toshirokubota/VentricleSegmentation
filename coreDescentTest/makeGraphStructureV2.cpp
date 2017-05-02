@@ -27,8 +27,12 @@ using namespace std;
 #include <Graph.h>
 #include <GraphFactory.h>
 #include <Kruskal.h>
+#include <szConvexHull3D.h>
 
 bool _EightNeighbor = false;
+bool _Use_New = true;
+int _debug_id = 85958; 
+int _debug_id2 = 85957;
 
 struct CoreParticle
 {
@@ -126,6 +130,18 @@ private:
 	NeighborhoodFactory operator=(NeighborhoodFactory& f){}
 };
 
+float
+dotProduct(float x1, float y1, float z1, float t1, float x2, float y2, float z2, float t2)
+{
+	return x1*x2 + y1*y2 + z1*z2 + t1*t2;
+}
+
+float
+length(float x, float y, float z, float t)
+{
+	return sqrt(x*x + y*y + z*z + t*t);
+}
+
 bool
 surfaceParticle(CoreParticle* p, int ndim)
 {
@@ -143,28 +159,98 @@ medialParticle(CoreParticle* p, int ndim)
 	return p->ascendents.size() >= 2 * (ndim - 1) || p->descendents.size() == 0;
 }
 
+bool
+checkForCollision(vector<vector<int>>& df, int ndim)
+{
+	if (ndim == 2)
+	{
+		bool b[8];
+		int xoff[] = { -1, 0, 1, -1, 1, -1, 0, 1 };
+		int yoff[] = { -1, -1, -1, 0, 0, 1, 1, 1 };
+		for (int n = 0; n < 8; ++n)
+		{
+			b[n] = false;
+			for (int i = 0; i < df.size(); ++i)
+			{
+				if (df[i][0] == xoff[n] && df[i][1] == yoff[n])
+				{
+					b[n] = true;
+					break;
+				}
+			}
+		}
+		return (b[0] && b[7]) || (b[1] && b[6]) || (b[2] && b[5]) || (b[3] && b[4]);
+	}
+	else if (ndim == 3)
+	{
+		bool b[26];
+		int xoff[] = { -1, 0, 1, -1, 0, 1, -1, 0, 1, -1, 0, 1, -1, 1, -1, 0, 1, -1, 0, 1, -1, 0, 1, -1, 0, 1 };
+		int yoff[] = { -1, -1, -1, 0, 0, 0, 1, 1, 1, -1, -1, -1, 0, 0, 1, 1, 1, -1, -1, -1, 0, 0, 0, 1, 1, 1 };
+		int zoff[] = { -1, -1, -1, -1, -1, -1, -1, -1, -1, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1 };
+		for (int n = 0; n < 26; ++n)
+		{
+			b[n] = false;
+			for (int i = 0; i < df.size(); ++i)
+			{
+				if (df[i][0] == xoff[n] && df[i][1] == yoff[n] && df[i][2] == zoff[n])
+				{
+					b[n] = true;
+					break;
+				}
+			}
+		}
+		return (b[9] && b[11] && b[14] && b[16]) //Z=0 plane, Diagonal, [0 0 1]
+			|| (b[10] && b[12] && b[13] && b[15]) //Z=0 plane Horizontal/Vertical, [0
+			|| (b[4] && b[10] && b[15] && b[21])  //X=0 plane, Horizontal/Vertical
+			|| (b[1] && b[7] && b[18] && b[24])  //X=0 plane, Diagonal
+			|| (b[4] && b[12] && b[13] && b[21]) //Y=0 plane, Horizontal/Vertical
+			|| (b[3] && b[5] && b[20] && b[22]) //Y=0 plane, Diagonal
+			|| (b[0] && b[2] && b[23] && b[25])
+			|| (b[1] && b[12] && b[13] && b[24])
+			|| (b[6] && b[8] && b[17] && b[19])
+			|| (b[7] && b[12] && b[13] && b[18])
+			|| (b[0] && b[6] && b[19] && b[25])
+			|| (b[3] && b[10] && b[15] && b[22])
+			|| (b[2] && b[8] && b[17] && b[23])
+			|| (b[5] && b[10] && b[15] && b[20])
+			;
+
+	}
+}
+
 /*
-p has ascendents that are not neighbors to each other.
+Ascendents of p are not linearly separable.
 */
 bool
 strongMedialParticle(CoreParticle* p, int ndim)
 {
+	if (p->descendents.size() == 0)
+	{
+		return true;
+	}
 	if (medialParticle(p, ndim) == false)
 	{
 		return false;
 	}
-	for (set<CoreParticle*>::iterator it = p->ascendents.begin(); it != p->ascendents.end(); ++it)
+	if (ndim == 2 || ndim == 3)
 	{
-		CoreParticle* q = *it;
-		set<CoreParticle*>::iterator jt = it;
-		jt++;
-		for (; jt != p->ascendents.end(); ++jt)
+		vector<vector<int>> df;
+		for (set<CoreParticle*>::iterator it = p->ascendents.begin(); it != p->ascendents.end(); ++it)
 		{
-			CoreParticle* r = *jt;
-			if (find(r->neighbors.begin(), r->neighbors.end(), q) == r->neighbors.end()) return true;
+			CoreParticle* q = *it;
+			vector<int> d;
+			d.push_back(q->x - p->x);
+			d.push_back(q->y - p->y);
+			d.push_back(q->z - p->z);
+			d.push_back(q->t - p->t);
+			df.push_back(d);
 		}
+		return checkForCollision(df, ndim);
 	}
-	return false;
+	else
+	{
+		return false;
+	}
 }
 
 bool
@@ -172,7 +258,6 @@ inflectionParticle(CoreParticle* p, int ndim)
 {
 	return surfaceParticle(p, ndim) && p->descendents.size() >= 2;  //ndim;
 }//
-
 
 
 CoreParticle*
@@ -391,19 +476,51 @@ clusterParticles(vector<CoreParticle*>& particles)
 }
 
 /*
-Linke particles without descendents to its neighbors with the same generation that is strong medial particle.
+Link particles without descendents to its neighbors with the same generation that is strong medial particle.
+This is to link particles inside isolated local maximum components.
 */
 void
 propagateDescendency2(vector<CoreParticle*>& P, int ndim)
 {
-	vector<CoreParticle*> Q; //particles that can links to decendency
+	vector<CoreParticle*> U; //particles that can links to decendency
 	for (int i = 0; i < P.size(); ++i)
 	{
-		if (strongMedialParticle(P[i], ndim))
+		if (P[i]->descendents.empty())
 		{
-			Q.push_back(P[i]);
+			U.push_back(P[i]);
 		}
 	}
+	vector<vector<CoreParticle*>> C = clusterParticles(U);
+	vector<CoreParticle*> R;
+	for (int i = 0; i < C.size(); ++i)
+	{
+		vector<float> v(4, 0.0f);
+		for (int j = 0; j < C[i].size(); ++j)
+		{
+			v[0] += C[i][j]->x;
+			v[1] += C[i][j]->y;
+			v[2] += C[i][j]->z;
+			v[3] += C[i][j]->t;
+		}
+		v[0] /= C[i].size(); v[1] /= C[i].size(); v[2] /= C.size(); v[3] /= C.size();
+		CoreParticle* rep = NULL;
+		float mind = std::numeric_limits<float>::infinity();
+		for (int j = 0; j < C[i].size(); ++j)
+		{
+			float d = (v[0] - C[i][j]->x, v[1] - C[i][j]->y, v[2] - C[i][j]->z, v[3] - C[i][j]->t);
+			if (d < mind)
+			{
+				mind = d;
+				rep = C[i][j];
+			}
+		}
+		if (rep)
+		{
+			rep->descendents.insert(rep); //temporary add itself as a descendent
+			R.push_back(rep);
+		}
+	}
+	vector<CoreParticle*> Q = R;
 	while (Q.empty() == false)
 	{
 		set<CoreParticle*> S; //particles that are to be lined to decendency
@@ -431,7 +548,7 @@ propagateDescendency2(vector<CoreParticle*>& P, int ndim)
 			for (int j = 0; j < p->neighbors.size(); ++j)
 			{
 				CoreParticle* q = p->neighbors[j];
-				if (q->gen == p->gen && (q->descendents.size() > 0 || strongMedialParticle(q, ndim)))
+				if (q->gen == p->gen && q->descendents.size() > 0)
 				{
 					float d = (p->x - q->x)*(p->x - q->x) + (p->y - q->y)*(p->y - q->y) + (p->z - q->z)*(p->z - q->z) + (p->t - q->t)*(p->t - q->t);
 					if (d < mind)
@@ -443,14 +560,22 @@ propagateDescendency2(vector<CoreParticle*>& P, int ndim)
 			}
 			p->descendents.insert(best);
 			best->ascendents.insert(p);
+			if (best->id == _debug_id || best->id == _debug_id2)
+			{
+				printf("C - %d => %d\n", p->id, best->id);
+			}
 		}
 		Q.clear();
 		Q.insert(Q.end(), S.begin(), S.end());
 	}
+	for (int i = 0; i < R.size(); ++i)
+	{
+		R[i]->descendents.clear();
+	}
 }
 
 /*
-Linke particles without descendents to its neighbors with the same generation and with a decendent.
+Linke\ particles without descendents to its neighbors with the same generation and with a decendent.
 */
 void
 propagateDescendency(vector<CoreParticle*>& P)
@@ -465,7 +590,7 @@ propagateDescendency(vector<CoreParticle*>& P)
 	}
 	while (Q.empty() == false)
 	{
-		set<CoreParticle*> S; //particles that are to be lined to decendency
+		set<CoreParticle*> S; //particles that are to be linked to decendency
 		for (int i = 0; i < Q.size(); ++i)
 		{
 			CoreParticle* p = Q[i];
@@ -502,12 +627,15 @@ propagateDescendency(vector<CoreParticle*>& P)
 			}
 			p->descendents.insert(best);
 			best->ascendents.insert(p);
+			if (best->id == _debug_id || best->id == _debug_id2)
+			{
+				printf("C - %d => %d\n", p->id, best->id);
+			}
 		}
 		Q.clear();
 		Q.insert(Q.end(), S.begin(), S.end());
 	}
 }
-
 
 /*
 Based on the surface normal direction, find a neighbor that match the direction best.
@@ -515,7 +643,7 @@ GEN can be one larger than p->gen (in this case, searching for a descendent) or
 one less than p->gen (in this case, searching for an ancestor.
 */
 CoreParticle*
-representativeNeighbor(CoreParticle* p, int gen)
+representativeNeighborOld(CoreParticle* p, int gen)
 {
 	float dx = 0, dy = 0, dz = 0, dt = 0;
 	int count = 0;
@@ -554,6 +682,74 @@ representativeNeighbor(CoreParticle* p, int gen)
 			}
 		}
 		return best;
+	}
+}
+
+/*
+Based on the surface normal direction, find a neighbor that match the direction best.
+GEN can be one larger than p->gen (in this case, searching for a descendent) or
+one less than p->gen (in this case, searching for an ancestor.
+*/
+CoreParticle*
+representativeNeighborNew(CoreParticle* p, int gen)
+{
+	float dx = 0, dy = 0, dz = 0, dt = 0;
+	int count = 0;
+	for (int i = 0; i < p->neighbors.size(); ++i)
+	{
+		CoreParticle* q = p->neighbors[i];
+		if (q->gen == gen)
+		{
+			dx += (q->x - p->x);
+			dy += (q->y - p->y);
+			dz += (q->z - p->z);
+			dt += (q->t - p->t);
+			count++;
+		}
+	}
+	if (count == 0) return NULL;
+	else
+	{
+		float len = length(dx, dy, dz, dt); // sqrt(vx*vx + vy*vy + vz*vz + vt*vt);
+		float vx = dx / len;
+		float vy = dy / len;
+		float vz = dz / len;
+		float vt = dt / len;
+		CoreParticle* best = NULL;
+		float maxdp = -std::numeric_limits<float>::infinity();
+		for (int i = 0; i < p->neighbors.size(); ++i)
+		{
+			CoreParticle* q = p->neighbors[i];
+			if (q->gen ==  gen)
+			{
+				float qx = q->x - p->x;
+				float qy = q->y - p->y;
+				float qz = q->z - p->z;
+				float qt = q->t - p->t;
+				float len2 = length(qx, qy, qz, qt); // sqrt(qx*qx + qy*qy + qz*qz + qt*qt);
+				//float dp = (qx*vx + qy*vy + qz*vz + qt*vt) / len;
+				float dp = dotProduct(qx, qy, qz, qt, vx, vy, vz, vt) / len2;
+				if (dp > maxdp)
+				{
+					maxdp = dp;
+					best = q;
+				}
+			}
+		}
+		return best;
+	}
+}
+
+CoreParticle*
+representativeNeighbor(CoreParticle* p, int gen)
+{
+	if (_Use_New)
+	{
+		return representativeNeighborNew(p, gen);
+	}
+	else
+	{
+		return representativeNeighborOld(p, gen);
 	}
 }
 
@@ -619,6 +815,10 @@ const int* dims)
 		{
 			p->descendents.insert(q);
 			q->ascendents.insert(p);
+			if (q->id == _debug_id)
+			{
+				printf("A - %d => %d\n", p->id, q->id);
+			}
 		}
 	}
 	for (int i = 0; i < particles.size(); ++i)
@@ -631,6 +831,10 @@ const int* dims)
 			{
 				q->descendents.insert(p);
 				p->ascendents.insert(q);
+				if (q->id == 93297 || q->id == _debug_id2)
+				{
+					printf("B - %d => %d\n", p->id, q->id);
+				}
 			}
 		}
 	}
@@ -734,6 +938,9 @@ makeGraphStructure(vector<CoreParticle*>& mp, vector<int>& S, int ndim, const in
 		CoreParticle* p = mst[i]->u->key;
 		CoreParticle* q = mst[i]->v->key;
 		adj.insert(pair<CoreParticle*, CoreParticle*>(p, q));
+		printf("%d\t%d\n", p->label, q->label); 
+			//distance(vertices.begin(), find(vertices.begin(), vertices.end(), mst[i]->u)),
+			//distance(vertices.begin(), find(vertices.begin(), vertices.end(), mst[i]->v)));
 	}
 	return adj;
 }
@@ -767,7 +974,13 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[])
 		ReadScalar(value, prhs[2], classMode);
 		_EightNeighbor = value > 0 ? true : false;
 	}
-
+	if (nrhs >= 4)
+	{
+		mxClassID classMode;
+		int value;
+		ReadScalar(value, prhs[3], classMode);
+		_Use_New = value > 0 ? true : false;
+	}
 	int nvoxels = numberOfElements(ndimL, dimsL);
 
 	vector<CoreParticle*> mp = generateParticleMap(L, ndimL, dimsL);
@@ -779,7 +992,7 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[])
 
 	if (nlhs >= 1)
 	{
-		int dims[] = { particles.size(), 10 };
+		int dims[] = { particles.size(), 12 };
 		vector<int> F(dims[0] * dims[1]);
 		for (int i = 0; i < particles.size(); ++i)
 		{
@@ -794,6 +1007,23 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[])
 			SetData2(F, i, 7, dims[0], dims[1], surfaceParticle(p, ndimL) ? 1 : 0);
 			SetData2(F, i, 8, dims[0], dims[1], strongMedialParticle(p, ndimL) ? 1 : 0);
 			SetData2(F, i, 9, dims[0], dims[1], inflectionParticle(p, ndimL) ? (int)p->descendents.size() : 0);
+			SetData2(F, i, 10, dims[0], dims[1], (int)p->descendents.size());
+			SetData2(F, i, 11, dims[0], dims[1], (int)p->ascendents.size());
+			if (p->id == 16838 || p->id == 9032)
+			{
+				bool b = strongMedialParticle(p, ndimL);
+				for (set<CoreParticle*>::iterator it = p->ascendents.begin(); it != p->ascendents.end(); ++it)
+				{
+					CoreParticle* q = *it;
+					printf("%d(%d,%d,%d) -- %d(%d,%d,%d)\n", p->id, p->x, p->y, p->z, q->id, q->x, q->y, q->z);
+				}
+				printf("%d %d %d\n", p->x + 1, p->y + 1, p->z + 1);
+				for (set<CoreParticle*>::iterator it = p->ascendents.begin(); it != p->ascendents.end(); ++it)
+				{
+					CoreParticle* q = *it;
+					printf("%d %d %d\n", q->x + 1, q->y + 1, q->z + 1);
+				}
+			}
 		}
 		plhs[0] = StoreData(F, mxINT32_CLASS, 2, dims);
 	}

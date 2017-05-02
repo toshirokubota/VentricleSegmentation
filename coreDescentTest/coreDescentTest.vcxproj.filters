@@ -33,6 +33,12 @@
     <ClCompile Include="makeGraphStructureV2.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="..\src\NoduleSegmenationSupport\szConvexHullFillNew.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\NoduleSegmenationSupport\szGeometry.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\include\NoduleSegmenationSupport\mexFileIO.h">

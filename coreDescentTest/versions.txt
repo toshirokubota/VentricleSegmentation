@@ -11,3 +11,7 @@ Use local maximum of the growth generation (region growth from the surface towar
 
 Construct a tree from the growth order (captured in ascendents and descendents).
 
+> makeGraphStructureV2.cpp
+Try to prune some spurious medial axis points via 'linear separability.'
+
+>
