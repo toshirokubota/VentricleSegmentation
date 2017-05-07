@@ -46,7 +46,6 @@ struct CoreParticle
 		z = z0;
 		t = t0;
 		value = 0;
-		dval = 0;
 		pi = NULL;
 		selected = false;
 	}
@@ -161,6 +160,71 @@ medialParticle(CoreParticle* p, int ndim)
 	return p->ascendents.size() >= 2 * (ndim - 1) || p->descendents.size() == 0;
 }
 
+/*bool
+strongMedialParticle(CoreParticle* p, vector<CoreParticle*>& mp, int ndim, const int* dims)
+{
+	if (p->descendents.size() == 0)
+	{
+		return true;
+	}
+	if (medialParticle(p, ndim) == false)
+	{
+		return false;
+	}
+	if (ndim == 2)
+	{
+		bool b[8];
+		int xoff[] = { -1, 0, 1, -1, 1, -1, 0, 1 };
+		int yoff[] = { -1, -1, -1, 0, 0, 1, 1, 1 };
+		for (int n = 0; n < 8; ++n)
+		{
+			b[n] = false;
+			CoreParticle* q = GetData2(mp, p->x + xoff[n], p->y + yoff[n], dims[0], dims[1], (CoreParticle*)NULL);
+			if (q != NULL && q->dval <= p->dval)
+			{
+				b[n] = true;
+			}
+		}
+		return (b[0] && b[7]) || (b[1] && b[6]) || (b[2] && b[5]) || (b[3] && b[4]);
+	}
+	else if (ndim == 3)
+	{
+		bool b[26];
+		int xoff[] = { -1, 0, 1, -1, 0, 1, -1, 0, 1, -1, 0, 1, -1, 1, -1, 0, 1, -1, 0, 1, -1, 0, 1, -1, 0, 1 };
+		int yoff[] = { -1, -1, -1, 0, 0, 0, 1, 1, 1, -1, -1, -1, 0, 0, 1, 1, 1, -1, -1, -1, 0, 0, 0, 1, 1, 1 };
+		int zoff[] = { -1, -1, -1, -1, -1, -1, -1, -1, -1, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1 };
+		for (int n = 0; n < 26; ++n)
+		{
+			b[n] = false;
+			CoreParticle* q = GetData3(mp, p->x + xoff[n], p->y + yoff[n], p->z + zoff[n], dims[0], dims[1], dims[2], (CoreParticle*)NULL);
+			if (q != NULL && q->dval <= p->dval)
+			{
+				b[n] = true;
+			}
+		}
+		return (b[9] && b[11] && b[14] && b[16]) //Z=0 plane, Diagonal, [0 0 1]
+			|| (b[10] && b[12] && b[13] && b[15]) //Z=0 plane Horizontal/Vertical, [0
+			|| (b[4] && b[10] && b[15] && b[21])  //X=0 plane, Horizontal/Vertical
+			|| (b[1] && b[7] && b[18] && b[24])  //X=0 plane, Diagonal
+			|| (b[4] && b[12] && b[13] && b[21]) //Y=0 plane, Horizontal/Vertical
+			|| (b[3] && b[5] && b[20] && b[22]) //Y=0 plane, Diagonal
+			|| (b[0] && b[2] && b[23] && b[25])
+			|| (b[1] && b[12] && b[13] && b[24])
+			|| (b[6] && b[8] && b[17] && b[19])
+			|| (b[7] && b[12] && b[13] && b[18])
+			|| (b[0] && b[6] && b[19] && b[25])
+			|| (b[3] && b[10] && b[15] && b[22])
+			|| (b[2] && b[8] && b[17] && b[23])
+			|| (b[5] && b[10] && b[15] && b[20])
+			;
+
+	}
+	else
+	{
+		return false;
+	}
+}*/
+
 bool
 checkForCollision(vector<vector<int>>& df, int ndim)
 {
@@ -220,9 +284,6 @@ checkForCollision(vector<vector<int>>& df, int ndim)
 	}
 }
 
-/*
-Ascendents of p are not linearly separable.
-*/
 bool
 strongMedialParticle(CoreParticle* p, int ndim)
 {
@@ -478,31 +539,6 @@ clusterParticles(vector<CoreParticle*>& particles)
 }
 
 /*
-Based on the L2 distance value, find the neighbor that is most straight.
-*/
-CoreParticle*
-representativeNeighbor(CoreParticle* p, int gen)
-{
-	float minerr = std::numeric_limits<float>::infinity();
-	CoreParticle* best = NULL;
-	for (int i = 0; i < p->neighbors.size(); ++i)
-	{
-		CoreParticle* q = p->neighbors[i];
-		float len = length(p->x - q->x, p->y - q->y, p->z - q->z, p->t - q->t);
-		if (q->gen == gen)
-		{
-			float err = Abs(p->dval + len - q->dval);
-			if (err < minerr)
-			{
-				minerr = err;
-				best = q;
-			}
-		}
-	}
-	return best;
-}
-
-/*
 Link particles without descendents to its neighbors with the same generation that is strong medial particle.
 This is to link particles inside isolated local maximum components.
 */
@@ -638,38 +674,17 @@ propagateDescendency(vector<CoreParticle*>& P)
 		{
 			CoreParticle* p = *it;
 			CoreParticle* best = NULL;
-			if (p->ascendents.empty())
+			float mind = numeric_limits<float>::infinity();
+			for (int j = 0; j < p->neighbors.size(); ++j)
 			{
-				best = representativeNeighbor(p, p->gen);
-			}
-			else {
-				vector<float> mv(4, 0.f);
-				for (set<CoreParticle*>::iterator jt = p->ascendents.begin(); jt != p->ascendents.end(); jt++)
+				CoreParticle* q = p->neighbors[j];
+				if (q->descendents.size() > 0 && q->gen == p->gen)
 				{
-					CoreParticle* r = *jt;
-					mv[0] += r->x;
-					mv[1] += r->y;
-					mv[2] += r->z;
-					mv[3] += r->t;
-				}
-				for (int m = 0; m < 4; ++m)
-				{
-					mv[m] /= p->ascendents.size();
-				}
-				float mind = numeric_limits<float>::infinity();
-				float predicted[4] = { 2 * p->x - mv[0], 2 * p->y - mv[1], 2 * p->z - mv[2], 2 * p->t - mv[3] };
-				for (int j = 0; j < p->neighbors.size(); ++j)
-				{
-					CoreParticle* q = p->neighbors[j];
-					if (q->descendents.size() > 0 && q->gen == p->gen)
+					float d = (p->x - q->x)*(p->x - q->x) + (p->y - q->y)*(p->y - q->y) + (p->z - q->z)*(p->z - q->z) + (p->t - q->t)*(p->t - q->t);
+					if (d < mind)
 					{
-						float d = (predicted[0] - q->x)*(predicted[0] - q->x) + (predicted[1] - q->y)*(predicted[1] - q->y) + 
-							(predicted[2] - q->z)*(predicted[2] - q->z) + (predicted[3] - q->t)*(predicted[3] - q->t);
-						if (d < mind)
-						{
-							mind = d;
-							best = q;
-						}
+						mind = d;
+						best = q;
 					}
 				}
 			}
@@ -683,6 +698,31 @@ propagateDescendency(vector<CoreParticle*>& P)
 		Q.clear();
 		Q.insert(Q.end(), S.begin(), S.end());
 	}
+}
+
+/*
+Based on the L2 distance value, find the neighbor that is most straight.
+*/
+CoreParticle*
+representativeNeighbor(CoreParticle* p, int gen)
+{
+	float minerr = std::numeric_limits<float>::infinity();
+	CoreParticle* best = NULL;
+	for (int i = 0; i < p->neighbors.size(); ++i)
+	{
+		CoreParticle* q = p->neighbors[i];
+		float len = length(p->x - q->x, p->y - q->y, p->z - q->z, p->t - q->t);
+		if (q->gen == gen)
+		{
+			float err = Abs(p->dval + len - q->dval);
+			if (err < minerr)
+			{
+				minerr = err;
+				best = q;
+			}
+		}
+	}
+	return best;
 }
 
 /*
@@ -776,7 +816,7 @@ propagateParticles(
 	return particles;
 }
 
-set<pair<CoreParticle*,CoreParticle*>>
+vector<Edge<CoreParticle*>*>
 makeGraphStructure(vector<CoreParticle*>& mp, vector<int>& S, int ndim, const int* dims)
 {
 	vector<CoreParticle*> core;
@@ -864,7 +904,8 @@ makeGraphStructure(vector<CoreParticle*>& mp, vector<int>& S, int ndim, const in
 	}
 	
 	vector<Edge<CoreParticle*>*> mst = Kruskal(vertices);
-	set<pair<CoreParticle*, CoreParticle*>> adj;
+	return mst;
+	/*set<pair<CoreParticle*, CoreParticle*>> adj;
 	for (int i = 0; i < mst.size(); ++i)
 	{
 		CoreParticle* p = mst[i]->u->key;
@@ -874,7 +915,7 @@ makeGraphStructure(vector<CoreParticle*>& mp, vector<int>& S, int ndim, const in
 			//distance(vertices.begin(), find(vertices.begin(), vertices.end(), mst[i]->u)),
 			//distance(vertices.begin(), find(vertices.begin(), vertices.end(), mst[i]->v)));
 	}
-	return adj;
+	return adj;*/
 }
 
 void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[])
@@ -938,7 +979,7 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[])
 	vector<int> S(nvoxels, 0);
 	propagateParticles(particles, mp, S, ndimL, dimsL);
 	vector<int> S2(nvoxels, 0);
-	set<pair<CoreParticle*, CoreParticle*>> adj = makeGraphStructure(mp, S2, ndimL, dimsL);
+	vector<Edge<CoreParticle*>*> mst = makeGraphStructure(mp, S2, ndimL, dimsL);
 
 	if (nlhs >= 1)
 	{
@@ -979,15 +1020,13 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[])
 	}
 	if (nlhs >= 2)
 	{
-		int dims[] = { adj.size(), 2 };
+		int dims[] = { mst.size(), 3 };
 		vector<int> F(dims[0] * dims[1]);
-		int i = 0;
-		for (set<pair<CoreParticle*, CoreParticle*>>::iterator it = adj.begin(); it != adj.end(); ++it)
+		for (int i = 0; i < mst.size(); ++i)
 		{
-			pair<CoreParticle*, CoreParticle*> pr = *it;
-			SetData2(F, i, 0, dims[0], dims[1], pr.first->id);
-			SetData2(F, i, 1, dims[0], dims[1], pr.second->id);
-			i++;
+			SetData2(F, i, 0, dims[0], dims[1], mst[i]->u->key->id);
+			SetData2(F, i, 1, dims[0], dims[1], mst[i]->v->key->id);
+			SetData2(F, i, 2, dims[0], dims[1], (int)(mst[i]->w * 1000));
 		}
 		plhs[1] = StoreData(F, mxINT32_CLASS, 2, dims);
 	}
@@ -1021,6 +1060,7 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[])
 		plhs[4] = StoreData(F, mxINT32_CLASS, 2, dims);
 	}
 	CoreParticleFactory::getInstance().clean();
+	GraphFactory<CoreParticle*>::GetInstance().Clean();
 	mexUnlock();
 }
 
