@@ -16,3 +16,12 @@ Try to prune some spurious medial axis points via 'linear separability'.
 
 > makeGraphStructureV3.cpp
 Try to reproduce what makeGraphStructureV2 gives with distance map transform.
+
+> makeGraphStructureV4.cpp
+It also partition the particles from the MST and its weakest links.
+
+> makeGraphStructureV5.cpp
+It uses 4-neibor for propagation (as before) and 8-neighbor for linking those within the same generation.
+
+> makeGraphStructureV6.cpp
+Define medial core as one whose collection of descendents will split the surface into two.

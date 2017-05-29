@@ -106,7 +106,7 @@
     <ClCompile Include="..\src\NoduleSegmenationSupport\szMexUtility.cpp" />
     <ClCompile Include="..\src\NoduleSegmenationSupport\szMiscOperations.cpp" />
     <ClCompile Include="..\src\NoduleSegmenationSupport\szMyNeighborOp.cpp" />
-    <ClCompile Include="makeGraphStructureV2.cpp" />
+    <ClCompile Include="makeGraphStructureV6.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\include\NoduleSegmenationSupport\mexFileIO.h" />
