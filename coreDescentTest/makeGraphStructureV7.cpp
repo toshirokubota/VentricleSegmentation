@@ -234,58 +234,10 @@ vector<vector<CoreParticle*>>
 clusterParticles(vector<CoreParticle*>& particles);
 
 /*
-Perform the least square fitting of (Ax-b)^2 where A is a n by m matrix,
-b is a n-vector and x is a m-vector.
-*/
-std::vector<double>
-LeastSquaresFitting(const std::vector<double>& A, const std::vector<double>& b, int m, bool& bSuccess)
-{
-	std::vector<double> M(m*m);
-	std::vector<double> y(m);
-	int n = b.size();
-	for (int i = 0; i<m; ++i)
-	{
-		for (int j = 0; j<m; ++j)
-		{
-			double sum = 0;
-			for (int k = 0; k<n; ++k)
-			{
-				sum += A[i + m*k] * A[j + m*k];
-			}
-			M[i*m + j] = sum;
-		}
-	}
-	for (int i = 0; i<m; ++i)
-	{
-		double sum = 0;
-		for (int k = 0; k<n; ++k)
-		{
-			sum += A[i + m*k] * b[k];
-		}
-		y[i] = sum;
-	}
-
-	bSuccess = GaussJordan(M, y, m);
-	return y;
-}
-
-/*
-Solve Ax = 0 where A is a m by m matrix.
-*/
-std::vector<double>
-LeastSquaresFitting(const std::vector<double>& A, int m, bool& bSuccess)
-{
-	std::vector<double> y(m, 0.0);
-
-	bSuccess = GaussJordan(A, y, m);
-	return y;
-}
-
-/*
 Ascendents of p are not linearly separable.
 */
 bool
-strongMedialParticle(CoreParticle* p, int ndim)
+strongMedialParticle(CoreParticle* p, vector<vector<CoreParticle*>>& groups, int ndim)
 {
 	if (p->core >= 0) return p->core == 1;
 	if (p->descendents.size() == 0)
@@ -295,16 +247,12 @@ strongMedialParticle(CoreParticle* p, int ndim)
 	}
 	if (ndim == 2 || ndim == 3)
 	{
-		if (p->ascendents.size() >= (ndim-1) * 2)
+		if (p->ascendents.size() >= (ndim - 1) * 2)
 		{
-			if (_debug_id2 == p->id)
-			{
-				_debug_id2 += 0;
-			}
 			set<CoreParticle*> S;
 			vector<CoreParticle*> Q;
 			Q.insert(Q.end(), p->ascendents.begin(), p->ascendents.end());
-			while(Q.empty() == false)
+			while (Q.empty() == false)
 			{
 				set<CoreParticle*> S2;
 				for (int j = 0; j < Q.size(); ++j)
@@ -320,99 +268,91 @@ strongMedialParticle(CoreParticle* p, int ndim)
 					}
 				}
 				Q.clear();
-				Q.insert(Q.end(),S2.begin(), S2.end());
+				Q.insert(Q.end(), S2.begin(), S2.end());
 			}
-			vector<vector<double>> F;
-			for (set<CoreParticle*>::iterator it = S.begin(); it != S.end(); ++it)
+			vector<CoreParticle*> surface;
+			if (S.empty())
 			{
-				vector<double> v(4);
-				CoreParticle* q = *it;
-				v[0] = q->x - p->x;
-				v[1] = q->y - p->y;
-				v[2] = q->z - p->z;
-				v[3] = q->t - p->t;
-				float len = length(v[0], v[1], v[2], v[3]);
-				for (int j = 0; j < v.size(); ++j)
-				{
-					v[j] /= len;
-				}
-				F.push_back(v);
+				p->id += 0;
 			}
-			vector<double> sv(ndim, 0.0);
-			for (int j = 0; j < F.size(); ++j)
+			CoreParticle* sp = *(S.begin());
+
+			for (int i = 0; i < groups.size(); ++i)
 			{
-				for (int k = 0; k < ndim; ++k)
+				if (find(groups[i].begin(), groups[i].end(), sp) != groups[i].end())
 				{
-					sv[k] += F[j][k] * F[j][k];
+					surface = groups[i];
+					break;
 				}
 			}
-			//find the axis with smallest variation
-			int ax = ndim;
-			double minvar = sv.size();
-			for (int k = 0; k < sv.size(); ++k)
+			if (surface.size() == 0)
 			{
-				if (sv[k] < minvar)
+				p->id += 0;
+			}
+
+			vector<Node<CoreParticle*>*> nodes;
+			map<CoreParticle*, Node<CoreParticle*>*> nmap;
+			for (int i = 0; i < surface.size(); ++i)
+			{
+				if (S.find(surface[i]) == S.end())
 				{
-					ax = k;
-					minvar = sv[k];
+					Node<CoreParticle*>* n = makeset(surface[i]);
+					nodes.push_back(n);
+					nmap[surface[i]] = n;
 				}
 			}
-			int n = F.size();
-			int m = ndim;
-			vector<double> A(m * n);
-			vector<double> b(n);
-			for (int j = 0; j < n; ++j)
+
+			for (int i = 0; i < nodes.size(); ++i)
 			{
-				if (ax == ndim)
+				CoreParticle* q = nodes[i]->key;
+				for (int j = 0; j < q->neighbors8.size(); ++j)
 				{
-					for (int k = 0; k < m; ++k)
+					CoreParticle* r = q->neighbors8[j];
+					if (surfaceParticle(r, ndim) && nmap.find(r) != nmap.end())
 					{
-						A[m * j + k] = F[j][k];
-					}
-					b[j] = 1.0;
-				}
-				else
-				{
-					for (int k = 0; k < ax; ++k)
-					{
-						A[m * j + k] = F[j][k];
-					}
-					A[m*j + ax] = 1.0;
-					for (int k = ax+1; k < m; ++k)
-					{
-						A[m * j + k] = F[j][k];
-					}
-					b[j] = F[j][ax];
-				}
-			}
-			bool bSuccess;
-			vector<double> x = LeastSquaresFitting(A, b, m, bSuccess);
-			if (bSuccess)
-			{
-				float d = ax == ndim ? 0.0 : 1.0f;
-				float g = ax == ndim ? 1.0 : x[ax];
-				for (int j = 0; j < x.size(); ++j)
-				{
-					if (j != ax)
-					{
-						d += x[j] * x[j];
+						merge(nodes[i], nmap[r]);
 					}
 				}
-				if (sqrt(g * g)/ sqrt(d) < strong_core_thres)
-				{
-					p->core = 1;
-					return true;
-   				}
-				else
-				{
-					p->core = 0;
-					return false;
-				}
+			}
+			vector<Node<CoreParticle*>*> reps = clusters(nodes);
+			int nc = reps.size();
+			for (int i = 0; i < nodes.size(); ++i)
+			{
+				delete nodes[i];
+			}
+			if (nc > 1)
+			{
+				p->core = 1;
+				return 1;
+			}
+			else
+			{
+				p->core = 0;
+				return 0;
 			}
 		}
 	}
 	p->core = 0;
 	return false;
+}
+
+void
+labelStrongCoreParticles(vector<CoreParticle*>& particles, int ndim)
+{
+	vector<CoreParticle*> surfaces;
+	for (int i = 0; i < particles.size(); ++i)
+	{
+		if (surfaceParticle(particles[i], ndim))
+		{
+			surfaces.push_back(particles[i]);
+		}
+	}
+	vector<vector<CoreParticle*>> groups = clusterParticles(surfaces);
+	map<CoreParticle*, int> imap;
+	for (int i = 0; i < particles.size(); ++i)
+	{
+		strongMedialParticle(particles[i], groups, ndim);
+	}
 }
 
 bool
@@ -1088,17 +1028,22 @@ makeGraphStructure(vector<CoreParticle*>& mp, vector<int>& S, int ndim, const in
 		{
 			mp[i]->label = 0;
 			mp[i]->value = 0;
-			if (strongMedialParticle(mp[i], ndim))
-			{
-				core.push_back(mp[i]);
-				mp[i]->src = mp[i];
-			}
-			else {
-				mp[i]->src = NULL;
-			}
 			particles.push_back(mp[i]);
 		}
 	}
+	labelStrongCoreParticles(particles, ndim);
+	for (int i = 0; i < particles.size(); ++i)
+	{
+		if (particles[i]->core == 1)
+		{
+			core.push_back(particles[i]);
+			particles[i]->src = particles[i];
+		}
+		else {
+			particles[i]->src = NULL;
+		}
+	}
+
 	//propagateDescendency(particles);
 	//propagateDescendency2(particles, ndim);
 
@@ -1369,25 +1314,10 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[])
 			SetData2(F, i, 5, dims[0], dims[1], p->gen);
 			SetData2(F, i, 6, dims[0], dims[1], p->id);
 			SetData2(F, i, 7, dims[0], dims[1], surfaceParticle(p, ndimL) ? 1 : 0);
-			SetData2(F, i, 8, dims[0], dims[1], strongMedialParticle(p, ndimL) ? 1 : 0);
+			SetData2(F, i, 8, dims[0], dims[1], p->core);
 			SetData2(F, i, 9, dims[0], dims[1], inflectionParticle(p, ndimL) ? (int)p->descendents.size() : 0);
 			SetData2(F, i, 10, dims[0], dims[1], (int)p->descendents.size());
 			SetData2(F, i, 11, dims[0], dims[1], (int)p->ascendents.size());
-			if (p->id == 16838 || p->id == 9032)
-			{
-				bool b = strongMedialParticle(p, ndimL);
-				for (set<CoreParticle*>::iterator it = p->ascendents.begin(); it != p->ascendents.end(); ++it)
-				{
-					CoreParticle* q = *it;
-					printf("%d(%d,%d,%d) -- %d(%d,%d,%d)\n", p->id, p->x, p->y, p->z, q->id, q->x, q->y, q->z);
-				}
-				printf("%d %d %d\n", p->x + 1, p->y + 1, p->z + 1);
-				for (set<CoreParticle*>::iterator it = p->ascendents.begin(); it != p->ascendents.end(); ++it)
-				{
-					CoreParticle* q = *it;
-					printf("%d %d %d\n", q->x + 1, q->y + 1, q->z + 1);
-				}
-			}
 		}
 		plhs[0] = StoreData(F, mxINT32_CLASS, 2, dims);
 	}

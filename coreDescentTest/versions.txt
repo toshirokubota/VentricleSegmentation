@@ -25,3 +25,7 @@ It uses 4-neibor for propagation (as before) and 8-neighbor for linking those wi
 
 > makeGraphStructureV6.cpp
 Define medial core as one whose collection of descendents will split the surface into two.
+c
+> makeGraphStructureV7.cpp
+Implemented the idea started in V6 in a more complete (yet computationally expensive) way - a core is strong if 
+removing its surface descendents results in spliting the surface into two (or more).

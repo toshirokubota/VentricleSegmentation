@@ -99,6 +99,7 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="..\src\NoduleSegmenationSupport\GaussJordan.cpp" />
     <ClCompile Include="..\src\NoduleSegmenationSupport\szConvexHullFillNew.cpp" />
     <ClCompile Include="..\src\NoduleSegmenationSupport\szDistanceTransform.cpp" />
     <ClCompile Include="..\src\NoduleSegmenationSupport\szDistanceTransformNonIsotropic.cpp" />
@@ -106,9 +107,10 @@
     <ClCompile Include="..\src\NoduleSegmenationSupport\szMexUtility.cpp" />
     <ClCompile Include="..\src\NoduleSegmenationSupport\szMiscOperations.cpp" />
     <ClCompile Include="..\src\NoduleSegmenationSupport\szMyNeighborOp.cpp" />
-    <ClCompile Include="makeGraphStructureV6.cpp" />
+    <ClCompile Include="makeGraphStructureV7.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="..\include\NoduleSegmenationSupport\GaussJordan.h" />
     <ClInclude Include="..\include\NoduleSegmenationSupport\mexFileIO.h" />
     <ClInclude Include="..\include\NoduleSegmenationSupport\szDefaultParam.h" />
     <ClInclude Include="..\include\NoduleSegmenationSupport\szDistanceTransform.h" />
