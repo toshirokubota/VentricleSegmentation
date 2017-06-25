@@ -27,7 +27,6 @@ using namespace std;
 #include <Graph.h>
 #include <GraphFactory.h>
 #include <Kruskal.h>
-#include <GaussJordan.h>
 
 bool _EightNeighbor = false;
 bool _Use_New = true;
@@ -50,7 +49,7 @@ struct CoreParticle
 		dval = 0;
 		src = NULL;
 		//selected = false;
-		core = -1; //this will be set either 0 or 1.
+		core = -1; //this will be set either 0, 1, or 2.
 	}
 	int x;
 	int y;
@@ -239,11 +238,15 @@ Ascendents of p are not linearly separable.
 bool
 strongMedialParticle(CoreParticle* p, vector<vector<CoreParticle*>>& groups, int ndim)
 {
-	if (p->core >= 0) return p->core == 1;
+	if (p->core >= 0) return p->core > 0;
 	if (p->descendents.size() == 0)
 	{
-		p->core = 1;
-		return true;
+		p->core = 2;
+		//return true;
+	}
+	else
+	{
+		p->core = 0;
 	}
 	if (ndim == 2 || ndim == 3)
 	{
@@ -271,10 +274,6 @@ strongMedialParticle(CoreParticle* p, vector<vector<CoreParticle*>>& groups, int
 				Q.insert(Q.end(), S2.begin(), S2.end());
 			}
 			vector<CoreParticle*> surface;
-			if (S.empty())
-			{
-				p->id += 0;
-			}
 			CoreParticle* sp = *(S.begin());
 
 			for (int i = 0; i < groups.size(); ++i)
@@ -284,10 +283,6 @@ strongMedialParticle(CoreParticle* p, vector<vector<CoreParticle*>>& groups, int
 					surface = groups[i];
 					break;
 				}
-			}
-			if (surface.size() == 0)
-			{
-				p->id += 0;
 			}
 
 			vector<Node<CoreParticle*>*> nodes;
@@ -322,18 +317,15 @@ strongMedialParticle(CoreParticle* p, vector<vector<CoreParticle*>>& groups, int
 			}
 			if (nc > 1)
 			{
-				p->core = 1;
-				return 1;
+				p->core += 1;
 			}
 			else
 			{
-				p->core = 0;
-				return 0;
+				p->core += 0;
 			}
 		}
 	}
-	p->core = 0;
-	return false;
+	return p->core > 0;
 }
 
 void
@@ -901,7 +893,6 @@ propagateParticles(
 	vector<CoreParticle*>& particles,
 	vector<CoreParticle*>& mp,
 	vector<int>& S,
-	bool prune,
 	int ndim,
 	const int* dims)
 {
@@ -1034,7 +1025,7 @@ makeGraphStructure(vector<CoreParticle*>& mp, vector<int>& S, int ndim, const in
 	labelStrongCoreParticles(particles, ndim);
 	for (int i = 0; i < particles.size(); ++i)
 	{
-		if (particles[i]->core == 1)
+		if (particles[i]->core > 0)
 		{
 			core.push_back(particles[i]);
 			particles[i]->src = particles[i];
@@ -1136,30 +1127,29 @@ makeGraphStructure(vector<CoreParticle*>& mp, vector<int>& S, int ndim, const in
 	vector<Edge<CoreParticle*>*> mst = Kruskal(vertices);
 	printf("#vertices = %d, #edges = %d\n", vertices.size(), edge_count);
 
-	for (int i = 0; i < mst.size(); ++i)
+	/*for (int i = 0; i < mst.size(); ++i)
 	{
 		printf("%d %3.3f -- %d %3.3f ==> %f\n", 
 			mst[i]->u->key->id, mst[i]->u->key->dval, mst[i]->v->key->id, mst[i]->v->key->dval, mst[i]->w);
-	}
+	}*/
 	return mst;
 }
 
 void
 partition(vector<Edge<CoreParticle*>*>& tree, vector<CoreParticle*>& particles, vector<int>& S, 
-			int numClusters, int ndim, const int* dims)
+			vector<int>& toremove, int ndim, const int* dims)
 {
-	vector<pair<float, Edge<CoreParticle*>*>> pairs;
+	for (int i = 0; i < toremove.size(); ++i)
+	{
+		printf("to-remove id: %d\n", toremove[i]);
+	}
+	set<int> sids;
+	sids.insert(toremove.begin(), toremove.end());
+
 	set<Vertex<CoreParticle*>*> vertices;
 	for (int i = 0; i < tree.size(); ++i) {
-		pairs.push_back(pair<float, Edge<CoreParticle*>*>(tree[i]->w, tree[i]));
 		vertices.insert(tree[i]->u);
 		vertices.insert(tree[i]->v);
-	}
-	sort(pairs.begin(), pairs.end());
-	float thres = 0;
-	if (numClusters < pairs.size())
-	{
-		thres = pairs[pairs.size() - numClusters].first;
 	}
 	vector<Node<Vertex<CoreParticle*>*>*> nodes;
 	map<Vertex<CoreParticle*>*, Node<Vertex<CoreParticle*>*>*> vnmap;
@@ -1169,8 +1159,13 @@ partition(vector<Edge<CoreParticle*>*>& tree, vector<CoreParticle*>& particles, 
 		vnmap[*it] = n;
 	}
 	for (int i = 0; i < tree.size(); ++i){
-		if (tree[i]->w < thres) {
+		if (sids.find(tree[i]->u->key->id) == sids.end() || sids.find(tree[i]->v->key->id) == sids.end())
+		{
 			merge(vnmap[tree[i]->u], vnmap[tree[i]->v]);
+		}
+		else
+		{
+			printf("Edge (%d - %d) removed.\n", tree[i]->u->key->id, tree[i]->v->key->id);
 		}
 	}
 	vector<Node<Vertex<CoreParticle*>*>*> reps = clusters(nodes);
@@ -1233,6 +1228,47 @@ partition(vector<Edge<CoreParticle*>*>& tree, vector<CoreParticle*>& particles, 
 	}
 }
 
+
+void
+colorAscendents(vector<CoreParticle*>& particles, vector<int>& S, vector<int>& srcIds, int ndim, const int* dims)
+{
+	set<int> sids;
+	sids.insert(srcIds.begin(), srcIds.end());
+
+	set<CoreParticle*> src;
+	for (int i = 0; i < particles.size(); ++i)
+	{
+		particles[i]->label = 0;
+		if (sids.find(particles[i]->id) != sids.end())
+		{
+			src.insert(particles[i]);
+			particles[i]->label = src.size();
+		}
+	}
+	vector<CoreParticle*> Q;
+	Q.insert(Q.end(), src.begin(), src.end());
+	while (Q.empty() == false)
+	{
+		set<CoreParticle*> Q2;
+		for (int i = 0; i < Q.size(); ++i)
+		{
+			CoreParticle* p = Q[i];
+			SetVoxel(S, p, p->label, ndim, dims);
+			for (set<CoreParticle*>::iterator it = p->ascendents.begin(); it != p->ascendents.end(); ++it)
+			{
+				CoreParticle* q = *it;
+				if (q->label <= 0)
+				{
+					q->label = p->label;
+					Q2.insert(q);
+				}
+			}
+		}
+		Q.clear();
+		Q.insert(Q.end(), Q2.begin(), Q2.end());
+	}
+}
+
 void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[])
 {
 	if (nrhs < 1 || nlhs < 0)
@@ -1248,14 +1284,15 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[])
 	vector<unsigned char> L;
 	LoadData(L, prhs[0], classL, ndimL, &dimsL);
 
-	int nclusters = 2;
-	//float cutoff = 3;
+	vector<int> toremove; //id of core particles to be removed
 	if (nrhs >= 2)
 	{
-		mxClassID classMode;
-		ReadScalar(nclusters, prhs[1], classMode);
+		int ndimV;
+		const int* dimsV;
+		mxClassID classV;
+		LoadData(toremove, prhs[1], classV, ndimV, &dimsV);
 	}
-	if (nrhs >= 3)
+	/*if (nrhs >= 3)
 	{
 		mxClassID classMode;
 		//int value;
@@ -1269,7 +1306,7 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[])
 		int value;
 		ReadScalar(value, prhs[3], classMode);
 		prune = value > 0 ? true : false;
-	}
+	}*/
 	int nvoxels = numberOfElements(ndimL, dimsL);
 
 	vector<CoreParticle*> mp = generateParticleMap(L, ndimL, dimsL);
@@ -1293,11 +1330,12 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[])
 		}
 	}
 	vector<int> S(nvoxels, 0);
-	propagateParticles(particles, mp, S, prune, ndimL, dimsL);
+	propagateParticles(particles, mp, S,  ndimL, dimsL);
 	vector<int> S2(nvoxels, 0);
 	vector<Edge<CoreParticle*>*> mst = makeGraphStructure(mp, S2, ndimL, dimsL);
 	vector<int> S3(nvoxels, 0);
-	partition(mst, particles, S3, nclusters, ndimL, dimsL);
+	partition(mst, particles, S3, toremove, ndimL, dimsL);
+	//colorAscendents(particles, S3, toremove, ndimL, dimsL);
 
 	if (nlhs >= 1)
 	{
