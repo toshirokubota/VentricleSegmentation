@@ -105,9 +105,10 @@
     <ClCompile Include="..\src\NoduleSegmenationSupport\szMexUtility.cpp" />
     <ClCompile Include="..\src\NoduleSegmenationSupport\szMiscOperations.cpp" />
     <ClCompile Include="..\src\NoduleSegmenationSupport\szMyNeighborOp.cpp" />
-    <ClCompile Include="makeGraphStructure.cpp" />
+    <ClCompile Include="makeGraphStructureV3.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="..\include\NoduleSegmenationSupport\Dijkstra.h" />
     <ClInclude Include="..\include\NoduleSegmenationSupport\GaussJordan.h" />
     <ClInclude Include="..\include\NoduleSegmenationSupport\mexFileIO.h" />
     <ClInclude Include="..\include\NoduleSegmenationSupport\szDefaultParam.h" />

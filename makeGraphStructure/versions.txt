@@ -1,31 +1,9 @@
-> coreDescentTest.cpp
-
-From a core obtained by particleGrowthMD (v3D), grow the region by going down strictly the distance map.
-
-
-> localGenMaximum.cpp
-
-Use local maximum of the growth generation (region growth from the surface toward inside) to extract cores.
-
 > makeGraphStructure.cpp
 
-Construct a tree from the growth order (captured in ascendents and descendents).
+A core is strong if removing its surface descendents results in spliting the surface into two (or more).
 
 > makeGraphStructureV2.cpp
-Try to prune some spurious medial axis points via 'linear separability'.
 
-> makeGraphStructureV3.cpp
-Try to reproduce what makeGraphStructureV2 gives with distance map transform.
+Back more or less to an older more computationally lighter way - a core is strong if there is no descendent
+prior to more aggressive (descents) implemented propagateDescendency and propagateDescendency2.
 
-> makeGraphStructureV4.cpp
-It also partition the particles from the MST and its weakest links.
-
-> makeGraphStructureV5.cpp
-It uses 4-neibor for propagation (as before) and 8-neighbor for linking those within the same generation.
-
-> makeGraphStructureV6.cpp
-Define medial core as one whose collection of descendents will split the surface into two.
-c
-> makeGraphStructureV7.cpp
-Implemented the idea started in V6 in a more complete (yet computationally expensive) way - a core is strong if 
-removing its surface descendents results in spliting the surface into two (or more).

@@ -264,6 +264,7 @@ strongMedialParticle(CoreParticle* p, vector<vector<CoreParticle*>>& groups, int
 					if (surfaceParticle(q, ndim))
 					{
 						S.insert(q);
+						q->label = 1;
 					}
 					for (set<CoreParticle*>::iterator it = q->ascendents.begin(); it != q->ascendents.end(); ++it)
 					{
@@ -275,7 +276,6 @@ strongMedialParticle(CoreParticle* p, vector<vector<CoreParticle*>>& groups, int
 			}
 			vector<CoreParticle*> surface;
 			//CoreParticle* sp = *(S.begin());
-			set<int> gids;
 			for (set<CoreParticle*>::iterator it = S.begin(); it != S.end(); ++it)
 			{
 				CoreParticle* sp = *it;
@@ -284,12 +284,10 @@ strongMedialParticle(CoreParticle* p, vector<vector<CoreParticle*>>& groups, int
 					if (find(groups[i].begin(), groups[i].end(), sp) != groups[i].end())
 					{
 						surface = groups[i];
-						gids.insert(i);
-						//break;
+						break;
 					}
 				}
 			}
-			assert(gids.size() == 1);
 
 			vector<Node<CoreParticle*>*> nodes;
 			map<CoreParticle*, Node<CoreParticle*>*> nmap;
@@ -320,24 +318,22 @@ strongMedialParticle(CoreParticle* p, vector<vector<CoreParticle*>>& groups, int
 			if (nc > 1)
 			{
 				p->core += 1;
-				printf("%d (%d,%d,%d) with %d clusters: ", p->id, p->x, p->y, p->z, nc);
-				vector<int> vclc(nc, 0);
-				for (int k = 0; k < nodes.size(); ++k)
-				{
-					Node<CoreParticle*>* r = findset(nodes[k]);
-					int ind = distance(reps.begin(), find(reps.begin(), reps.end(), r));
-					vclc[ind]++;
-				}
-				for (int k = 0; k < nc; ++k)
-				{
-					printf("%d ", vclc[k]);
-				}
-				printf("\n");
 			}
-			else
+			printf("%d (%d,%d,%d) with %d clusters: ", p->id, p->x, p->y, p->z, nc);
+			vector<int> vclc(nc, 0);
+			for (int k = 0; k < nodes.size(); ++k)
 			{
-				p->core += 0;
+				Node<CoreParticle*>* r = findset(nodes[k]);
+				int ind = distance(reps.begin(), find(reps.begin(), reps.end(), r));
+				vclc[ind]++;
+				nodes[k]->key->label = ind + 2;
 			}
+			for (int k = 0; k < nc; ++k)
+			{
+				printf("%d ", vclc[k]);
+			}
+			printf("\n");
+
 			for (int i = 0; i < nodes.size(); ++i)
 			{
 				delete nodes[i];
@@ -359,12 +355,29 @@ labelStrongCoreParticles(vector<CoreParticle*>& particles, int ndim)
 		}
 	}
 	vector<vector<CoreParticle*>> groups = clusterParticles(surfaces);
-	map<CoreParticle*, int> imap;
 	for (int i = 0; i < particles.size(); ++i)
 	{
 		strongMedialParticle(particles[i], groups, ndim);
 	}
 }
+
+void
+labelStrongCoreParticlesTest(vector<CoreParticle*>& particles, CoreParticle* selected, int ndim)
+{
+	vector<CoreParticle*> surfaces;
+	for (int i = 0; i < particles.size(); ++i)
+	{
+		particles[i]->label = 0;
+		if (surfaceParticle(particles[i], ndim))
+		{
+			surfaces.push_back(particles[i]);
+		}
+	}
+	vector<vector<CoreParticle*>> groups = clusterParticles(surfaces);
+	selected->core = -1;
+	strongMedialParticle(selected, groups, ndim);
+}
+
 
 bool
 inflectionParticle(CoreParticle* p, int ndim)
@@ -1311,21 +1324,14 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[])
 		mxClassID classV;
 		LoadData(toremove, prhs[1], classV, ndimV, &dimsV);
 	}
-	/*if (nrhs >= 3)
+	int selected = -1;
+	if (nrhs >= 3)
 	{
 		mxClassID classMode;
 		//int value;
-		ReadScalar(strong_core_thres, prhs[2], classMode);
+		ReadScalar(selected, prhs[2], classMode);
 		//_EightNeighbor = value > 0 ? true : false;
 	}
-	bool prune = false;
-	if (nrhs >= 4)
-	{
-		mxClassID classMode;
-		int value;
-		ReadScalar(value, prhs[3], classMode);
-		prune = value > 0 ? true : false;
-	}*/
 	int nvoxels = numberOfElements(ndimL, dimsL);
 
 	vector<CoreParticle*> mp = generateParticleMap(L, ndimL, dimsL);
@@ -1349,13 +1355,34 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[])
 		}
 	}
 	vector<int> S(nvoxels, 0);
+	CoreParticle* selectedParticle = NULL;
 	propagateParticles(particles, mp, S,  ndimL, dimsL);
+	for (int i = 0; i < mp.size(); ++i)
+	{
+		if (mp[i])
+		{
+			mp[i]->label = 0;
+			mp[i]->value = 0;
+			if (mp[i]->id == selected)
+			{
+				selectedParticle = mp[i]; 
+			}
+		}
+	}
+	if (selectedParticle != NULL)
+	{
+		printf("Examining from %d\n", selectedParticle->id);
+		labelStrongCoreParticlesTest(particles, selectedParticle, ndimL);
+	}
 	vector<int> S2(nvoxels, 0);
-	vector<Edge<CoreParticle*>*> mst = makeGraphStructure(mp, S2, ndimL, dimsL);
+	for (int i = 0; i < mp.size(); ++i)
+	{
+		if (mp[i])
+		{
+			S2[i] = mp[i]->label;
+		}
+	}
 	vector<int> S3(nvoxels, 0);
-	partition(mst, particles, S3, toremove, ndimL, dimsL);
-	//colorAscendents(particles, S3, toremove, ndimL, dimsL);
-
 	if (nlhs >= 1)
 	{
 		int dims[] = { particles.size(), 12 };
@@ -1378,16 +1405,10 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[])
 		}
 		plhs[0] = StoreData(F, mxINT32_CLASS, 2, dims);
 	}
-	if (nlhs >= 2)
+	if (nlhs >= 2) //not currently used.
 	{
-		int dims[] = { mst.size(), 3 };
+		int dims[] = { 1,1 };
 		vector<int> F(dims[0] * dims[1]);
-		for (int i = 0; i < mst.size(); ++i)
-		{
-			SetData2(F, i, 0, dims[0], dims[1], mst[i]->u->key->id);
-			SetData2(F, i, 1, dims[0], dims[1], mst[i]->v->key->id);
-			SetData2(F, i, 2, dims[0], dims[1], (int)(100*mst[i]->w));
-		}
 		plhs[1] = StoreData(F, mxINT32_CLASS, 2, dims);
 	}
 	if (nlhs >= 3)
