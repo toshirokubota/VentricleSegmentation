@@ -7,3 +7,9 @@ A core is strong if removing its surface descendents results in spliting the sur
 Back more or less to an older more computationally lighter way - a core is strong if there is no descendent
 prior to more aggressive (descents) implemented propagateDescendency and propagateDescendency2.
 
+> makeGraphStructureV3.cpp
+When src and sink points are given by the user, it first constructs a shortest path tree, and use it
+(instead of minimum spannig tree) to segment the volume.
+There are still branches that spans out of a ventricle (especially the right one)...
+
+>
