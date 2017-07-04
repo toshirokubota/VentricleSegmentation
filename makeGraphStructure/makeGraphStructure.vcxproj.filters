@@ -33,7 +33,7 @@
     <ClCompile Include="..\src\NoduleSegmenationSupport\szGeometry.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="makeGraphStructureV3.cpp">
+    <ClCompile Include="makeGraphStructureV4.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
