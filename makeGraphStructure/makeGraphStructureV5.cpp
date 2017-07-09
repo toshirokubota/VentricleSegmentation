@@ -198,6 +198,37 @@ private:
 	NeighborhoodFactory operator=(NeighborhoodFactory& f){}
 };
 
+struct CuttingPlane
+{
+	CuttingPlane(CoreParticle* o, CoreParticle* near, CoreParticle* far) {
+		normal = vector<float>(4);
+		point = vector<float>(4);
+		point[0] = o->x;
+		point[1] = o->y;
+		point[2] = o->z;
+		point[3] = o->t;
+		normal[0] = far->x - near->x;
+		normal[1] = far->y - near->y;
+		normal[2] = far->z - near->z;
+		normal[3] = far->t - near->t;
+		float len = length(normal[0], normal[1], normal[2], normal[3]);
+		normal[0] /= len;		
+		normal[1] /= len;		
+		normal[2] /= len;		
+		normal[3] /= len;
+	}
+	bool sign(float x, float y, float z, float t)
+	{
+		x -= point[0];
+		y -= point[1];
+		z -= point[2];
+		t -= point[3];
+		return normal[0] * x + normal[1] * y + normal[2] * z + normal[3] * t;
+	}
+	vector<float> normal;
+	vector<float> point;
+};
+
 float
 dotProduct(float x1, float y1, float z1, float t1, float x2, float y2, float z2, float t2)
 {
@@ -998,7 +1029,7 @@ makeGraphStructure(vector<CoreParticle*>& mp, vector<int>& S,
 
 	//make sure selected points are core.
 	selected[0]->core = 3;
-	selected[1]->core = 4;
+	selected[1]->core = 3;
 
 	for (int i = 0; i < particles.size(); ++i)
 	{
@@ -1144,7 +1175,7 @@ partition(vector<Edge<CoreParticle*>*>& tree, vector<CoreParticle*>& particles, 
 		}
 		else
 		{
-			//printf("Edge (%d - %d) removed.\n", tree[i]->u->key->id, tree[i]->v->key->id);
+			printf("Edge (%d - %d) removed.\n", tree[i]->u->key->id, tree[i]->v->key->id);
 		}
 	}
 	vector<Node<Vertex<CoreParticle*>*>*> reps = clusters(nodes);
@@ -1351,76 +1382,6 @@ float separationFromMainBranch3(vector<Edge<CoreParticle*>*>& branch, Vertex<Cor
 	return vcos[vcos.size()/2];
 }
 
-/*
-Find how a branch is deviated from the main branch (where the src-sink path is included).
-The calculation first computes the distance from each node to the main branch.
-A branch is retained if no node in the branch deviated away from the main branch too much.
-*/
-float separationFromMainBranch4(vector<Edge<CoreParticle*>*>& branch, vector<Edge<CoreParticle*>*>& main_branch)
-{
-	float maxd = 0;
-	for (int i = 0; i < branch.size(); ++i)
-	{
-		CoreParticle* p = branch[i]->v->key;
-		float mind = std::numeric_limits<float>::infinity();
-		for (int j = 0; j < main_branch.size(); ++j)
-		{
-			CoreParticle* q = main_branch[j]->v->key;
-			float d = length(p-> x - q->x, p->y - q->y, p->z - q->z, p->t - q->t);
-			if (d < mind)
-			{
-				mind = d;
-			}
-		}
-		if (mind > maxd)
-		{
-			maxd = mind;
-		}
-	}
-	return maxd;
-}
-
-/*
-Find how a branch is deviated from the main branch (where the src-sink path is included).
-This version returns an edge to be cut, instead of the measure of diviation from the main branch.
-It assumes the branch is ordered in sequence starting from the source node.
-It evaluates each node along the branch how far it is to the main branch, until the measure exceeds the threshold.
-The edge led to the node diviating above threshold needs to be cut and is returned from this method.
-*/
-vector<Edge<CoreParticle*>*>
-separationFromMainBranch5(Edge<CoreParticle*>* edge, vector<Edge<CoreParticle*>*>& main_branch, float thres)
-{
-	vector<Edge<CoreParticle*>*> R;
-	CoreParticle* p = edge->v->key;
-	float mind = std::numeric_limits<float>::infinity();
-	for (int j = 0; j < main_branch.size(); ++j)
-	{
-		CoreParticle* q = main_branch[j]->v->key;
-		float d = length(p->x - q->x, p->y - q->y, p->z - q->z, p->t - q->t);
-		if (d < mind)
-		{
-			mind = d;
-		}
-	}
-	if (mind > thres)
-	{
-		R.push_back(edge);
-	}
-	else
-	{
-		for (int i = 0; i < edge->v->aList.size(); ++i)
-		{
-			Edge<CoreParticle*>* edge2 = edge->v->aList[i];
-			if (onTree(edge2))
-			{
-				vector<Edge<CoreParticle*>*> R2 = separationFromMainBranch5(edge2, main_branch, thres);
-				R.insert(R.end(), R2.begin(), R2.end());
-			}
-		}
-	}
-	return R;
-}
-
 void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[])
 {
 	if (nrhs < 1 || nlhs < 0)
@@ -1488,8 +1449,8 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[])
 	vector<CoreParticle*> selected_core(2);
 	selected_core[0] = closestParticle(particles, vsrc);
 	selected_core[1] = closestParticle(particles, vsink);
-	selected_core[0] = descendUntilCore(selected_core[0]);
-	selected_core[1] = descendUntilCore(selected_core[1]);
+	//selected_core[0] = descendUntilCore(selected_core[0]);
+	//selected_core[1] = descendUntilCore(selected_core[1]);
 
 	vector<int> S2(nvoxels, 0);
 	vector<Vertex<CoreParticle*>*> vertices = makeGraphStructure(mp, S2, selected_core, ndimL, dimsL);
@@ -1505,7 +1466,7 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[])
 			Edge<CoreParticle*>* ed = vertices[i]->pi->findEdge(vertices[i]);
 			assert(ed != NULL);
 			tree.push_back(ed);
-			ed->type = (EdgeType) 1;
+			ed->type = (EdgeType)1;
 		}
 	}
 
@@ -1516,64 +1477,24 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[])
 		if (u->pi != NULL)
 		{
 			Edge<CoreParticle*>* ed = u->pi->findEdge(u);
-			path.insert(path.begin(), ed);
 			ed->type = (EdgeType)2;
+			path.push_back(ed);
 		}
 		u = u->pi;
 	}
 
-	/*if (src->aList.size() == 1)
-	{
-		src = src->aList[0]->v;
-	}*/
-
-	vector<Edge<CoreParticle*>*> main_branch;
-	Edge<CoreParticle*>* retain;
-	for (int i = 0; i < src->aList.size(); ++i)
-	{
-		Edge<CoreParticle*>* ed = src->aList[i];
-		if (onTree(ed))
-		{
-			if (find(path.begin(), path.end(), src->aList[i]) != path.end())
-			{
-				main_branch = collectBranch(src->aList[i]);
-				retain = src->aList[i];
-				break;
-			}
-		}
-	}
+	CuttingPlane plane = CuttingPlane(src->key, path[0]->v->key, sink->pi->key);
+	printf("CuttingPlane: (%f, %f, %f) perp to (%f, %f, %f)\n",
+		plane.point[0], plane.point[1], plane.point[2], plane.normal[0], plane.normal[1], plane.normal[2]);
 	set<Edge<CoreParticle*>*> toremove;
-	printf("src = (%d,%d,%d), sink=(%d,%d,%d)\n", src->key->x, src->key->y, src->key->z, sink->key->x, sink->key->y, sink->key->z);
-	vector<Edge<CoreParticle*>*> edge_list = src->aList;
-	edge_list.insert(edge_list.end(), retain->v->aList.begin(), retain->v->aList.end());
-	for (int i = 0; i < edge_list.size(); ++i)
+	for (int i = 0; i < tree.size(); ++i)
 	{
-		Edge<CoreParticle*>* ed = edge_list[i];
-		if (onTree(ed))// && ed != retain)
+		CoreParticle* p = tree[i]->u->key;
+		CoreParticle* q = tree[i]->v->key;
+		if (plane.sign(p->x, p->y, p->z, p->t) != plane.sign(q->x, q->y, q->z, q->t))
 		{
-			vector<Edge<CoreParticle*>*> branch = collectBranch(ed);
-			//float d = separationFromMainBranch(branch, main_branch);
-			//float d = separationFromMainBranch2(branch, sink);
-			//float d = separationFromMainBranch3(branch, sink, src);
-			//float d = -cosine(ed->v->key, ed->u->key, path[path.size()-1]->u->key);
-			/*float d = separationFromMainBranch4(branch, main_branch);
-			printf("branch %d - %d: d=%f\n", ed->u->key->id, ed->v->key->id, d);
-			if (d > cutoff_thres)
-			{
-				toremove.insert(ed);
-				ed->type = (EdgeType)0;
-			}*/
-			vector<Edge<CoreParticle*>*> cut = separationFromMainBranch5(ed, path, cutoff_thres);
-			if (ed == retain)
-			{
-				printf("main branch (%d, %d):: %d to cut\n", path.size(), branch.size(), cut.size());
-			}
-			for (int k = 0; k < cut.size(); ++k)
-			{
-				printf("Edge (%d - %d) removed.\n", cut[k]->u->key->id, cut[k]->v->key->id);
-				toremove.insert(cut[k]);
-				cut[k]->type = (EdgeType)0;
-			}
+			toremove.insert(tree[i]);
+			tree[i]->type = (EdgeType)0;
 		}
 	}
 
@@ -1581,7 +1502,6 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[])
 	partition(tree, particles, S3, toremove, ndimL, dimsL);
 	//colorAscendents(particles, S3, toremove, ndimL, dimsL);
 
-	printf("Label at sink = %d\n", sink->key->label);
 	if (nlhs >= 1)
 	{
 		int dims[] = { particles.size(), 12 };

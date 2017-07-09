@@ -12,4 +12,12 @@ When src and sink points are given by the user, it first constructs a shortest p
 (instead of minimum spannig tree) to segment the volume.
 There are still branches that spans out of a ventricle (especially the right one)...
 
->
+> makeGraphStructureV4.cpp
+Tried various ways to cut branches at src. Not completely satisfied.
+
+> makeGraphStructureV4B.cpp
+Using bounding box to measure the overlap between branches.
+
+> makeGraphStructureV4C.cpp
+Using intersection of spheres to measure the overlap between branches.
+

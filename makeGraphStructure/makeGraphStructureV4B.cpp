@@ -198,6 +198,70 @@ private:
 	NeighborhoodFactory operator=(NeighborhoodFactory& f){}
 };
 
+struct BoundingBox
+{
+	BoundingBox(CParticle4D a, CParticle4D b)
+	{
+		minc = CParticle4D(Min(a.m_X, b.m_X), Min(a.m_Y, b.m_Y), Min(a.m_Z, b.m_Z), Min(a.m_T, b.m_T));
+		maxc = CParticle4D(Max(a.m_X, b.m_X), Max(a.m_Y, b.m_Y), Max(a.m_Z, b.m_Z), Max(a.m_T, b.m_T));
+	}
+	BoundingBox(set<CoreParticle*>& sp)
+	{
+		int maxval = std::numeric_limits<int>::max();
+		int minval = std::numeric_limits<int>::min();
+		minc = CParticle4D(maxval, maxval, maxval, maxval);
+		maxc = CParticle4D(minval, minval, minval, minval);
+		for (set<CoreParticle*>::iterator it = sp.begin(); it != sp.end(); ++it)
+		{
+			minc.m_X = Min(minc.m_X, (*it)->x);
+			minc.m_Y = Min(minc.m_Y, (*it)->y);
+			minc.m_Z = Min(minc.m_Z, (*it)->z);
+			minc.m_T = Min(minc.m_T, (*it)->t);
+			maxc.m_X = Max(maxc.m_X, (*it)->x);
+			maxc.m_Y = Max(maxc.m_Y, (*it)->y);
+			maxc.m_Z = Max(maxc.m_Z, (*it)->z);
+			maxc.m_T = Max(maxc.m_T, (*it)->t);
+		}
+	}
+	float volume()
+	{
+		return (float)(maxc.m_X - minc.m_X + 1)*(maxc.m_Y - minc.m_Y + 1)*(maxc.m_Z - minc.m_Z + 1)*(maxc.m_T - minc.m_T + 1);
+	}
+	bool inside(CParticle4D& p)
+	{
+		return p.m_X >= minc.m_X && p.m_X <= maxc.m_X && p.m_Y >= minc.m_Y && p.m_Y <= maxc.m_Y &&
+			p.m_Z >= minc.m_Z && p.m_Z <= maxc.m_Z && p.m_T >= minc.m_T && p.m_T <= maxc.m_T;
+	}
+	CParticle4D minc;
+	CParticle4D maxc;
+};
+
+float overlapVolume(BoundingBox& b1, BoundingBox& b2)
+{
+	int x1 = Max(b1.minc.m_X, b2.minc.m_X);
+	int x2 = Min(b1.maxc.m_X, b2.maxc.m_X);
+	int y1 = Max(b1.minc.m_Y, b2.minc.m_Y);
+	int y2 = Min(b1.maxc.m_Y, b2.maxc.m_Y);
+	int z1 = Max(b1.minc.m_Z, b2.minc.m_Z);
+	int z2 = Min(b1.maxc.m_Z, b2.maxc.m_Z);
+	int t1 = Max(b1.minc.m_T, b2.minc.m_T);
+	int t2 = Min(b1.maxc.m_T, b2.maxc.m_T);
+	if (x1 > x2 || y1 > y2 || z1 > z2 || t1 > t2) return 0.0f;
+	else {
+		return (x2 - x1 + 1)*(y2 - y1 + 1)*(z2 - z1 + 1)*(t2 - t1 + 1);
+	}
+	/*CParticle4D minc, maxc;
+	if (b1.inside(b2.minc)) minc = b2.minc;
+	else  if (b2.inside(b1.minc)) minc = b1.minc;
+	else return 0.0f; //no overlap
+	if (b1.inside(b2.maxc)) maxc = b2.maxc;
+	else if (b2.inside(b1.maxc)) maxc = b1.maxc;
+	else return 0.0f; //no overlap
+
+	BoundingBox b3(minc, maxc);
+	return b3.volume();*/
+}
+
 float
 dotProduct(float x1, float y1, float z1, float t1, float x2, float y2, float z2, float t2)
 {
@@ -1125,11 +1189,18 @@ void
 partition(vector<Edge<CoreParticle*>*>& tree, vector<CoreParticle*>& particles, vector<int>& S, 
 		  set<Edge<CoreParticle*>*>& toremove, int ndim, const int* dims)
 {
+	Vertex<CoreParticle*>* src = NULL;
 	set<Vertex<CoreParticle*>*> vertices;
 	for (int i = 0; i < tree.size(); ++i) {
 		vertices.insert(tree[i]->u);
 		vertices.insert(tree[i]->v);
+		if (tree[i]->u->key->core == 3)
+		{
+			src = tree[i]->u;
+		}
 	}
+	assert(src != NULL);
+
 	vector<Node<Vertex<CoreParticle*>*>*> nodes;
 	map<Vertex<CoreParticle*>*, Node<Vertex<CoreParticle*>*>*> vnmap;
 	for (set<Vertex<CoreParticle*>*>::iterator it = vertices.begin(); it != vertices.end(); ++it) {
@@ -1141,10 +1212,6 @@ partition(vector<Edge<CoreParticle*>*>& tree, vector<CoreParticle*>& particles, 
 		if (toremove.find(tree[i]) == toremove.end())
 		{
 			merge(vnmap[tree[i]->u], vnmap[tree[i]->v]);
-		}
-		else
-		{
-			//printf("Edge (%d - %d) removed.\n", tree[i]->u->key->id, tree[i]->v->key->id);
 		}
 	}
 	vector<Node<Vertex<CoreParticle*>*>*> reps = clusters(nodes);
@@ -1201,6 +1268,40 @@ partition(vector<Edge<CoreParticle*>*>& tree, vector<CoreParticle*>& particles, 
 			Q.insert(Q.end(), Q2.begin(), Q2.end());
 		}
 	}
+
+	//lastly, re-color the volume from the tree with the source in it
+	vector<CoreParticle*> Q;
+	Node<Vertex<CoreParticle*>*>* nsrc = findset(vnmap[src]);
+	for (int i = 0; i < nodes.size(); ++i)
+	{
+		if (findset(nodes[i]) == nsrc)
+		{
+			Q.push_back(nodes[i]->key->key);
+		}
+	}
+	while (Q.empty() == false)
+	{
+		set<CoreParticle*> Q2;
+		for (int i = 0; i < Q.size(); ++i)
+		{
+			CoreParticle* p = Q[i];
+			SetVoxel(S, p, src->key->label, ndim, dims);
+			for (set<CoreParticle*>::iterator it = p->ascendents.begin(); it != p->ascendents.end(); ++it)
+			{
+				CoreParticle* q = *it;
+				if (q->label != src->key->label)
+				{
+					q->label = p->label;
+					q->value = p->value + 1;
+					Q2.insert(q);
+				}
+			}
+		}
+		Q.clear();
+		Q.insert(Q.end(), Q2.begin(), Q2.end());
+	}
+
+
 	for (int i = 0; i < nodes.size(); ++i)
 	{
 		delete nodes[i];
@@ -1421,6 +1522,123 @@ separationFromMainBranch5(Edge<CoreParticle*>* edge, vector<Edge<CoreParticle*>*
 	return R;
 }
 
+/*
+From a set of particles (SP), go up the ascendent graph freely and collect all surface particles that are reachable.
+*/
+set<CoreParticle*>
+freeAscent(set<CoreParticle*>& sp, int ndim)
+{
+	set<CoreParticle*> all;
+	CoreParticle* src = *sp.begin();
+	for (set<CoreParticle*>::iterator it = sp.begin(); it != sp.end(); ++it)
+	{
+		(*it)->src = src;
+	}
+	set<CoreParticle*> res;
+	vector<CoreParticle*> Q;
+	Q.insert(Q.begin(), sp.begin(), sp.end());
+	while (Q.empty() == false)
+	{
+		set<CoreParticle*> Q2;
+		for (int i = 0; i < Q.size(); ++i)
+		{
+			all.insert(Q[i]);
+			if (surfaceParticle(Q[i], ndim))
+			{
+				res.insert(Q[i]);
+			}
+			else {
+				for (set<CoreParticle*>::iterator it = Q[i]->ascendents.begin(); it != Q[i]->ascendents.end(); ++it)
+				{
+					CoreParticle* q = *it;
+					if (q->src != src)
+					{
+						Q2.insert(q);
+						q->src = src;
+					}
+				}
+			}
+		}
+		Q.clear();
+		Q.insert(Q.begin(), Q2.begin(), Q2.end());
+	}
+	for (set<CoreParticle*>::iterator it = all.begin(); it != all.end(); ++it)
+	{
+		(*it)->src = NULL;
+	}
+	return res;
+}
+
+/*
+Find how a branch is deviated from the main branch (where the src-sink path is included).
+This version returns an edge to be cut, instead of the measure of diviation from the main branch.
+It assumes the branch is ordered in sequence starting from the source node.
+From each branch edge, collect a sequence of tree edges until another branch.
+For the branch, find the surface particles that are reachable, and they find the bounding box intersection between
+the branch surface and main-path surface (pre-calcuated in main_bbox).
+*/
+vector<Edge<CoreParticle*>*>
+separationFromMainBranch6(Edge<CoreParticle*>* edge, BoundingBox& main_bbox, float thres, int ndim)
+{
+	vector<Edge<CoreParticle*>*> R;
+	Edge<CoreParticle*>* ed = edge;
+	vector<CoreParticle*> path;
+	path.push_back(ed->u->key);
+	while (true)
+	{
+		path.push_back(ed->v->key);
+		vector<Edge<CoreParticle*>*> next;
+		for (int i = 0; i < ed->v->aList.size(); ++i)
+		{
+			Edge<CoreParticle*>* ed2 = ed->v->aList[i];
+			if (onTree(ed2))
+			{
+				next.push_back(ed2);
+			}
+		}
+		if (next.size() == 1)
+		{
+			ed = next[0];
+		}
+		else
+		{
+			//check for overlap
+			set<CoreParticle*> spath;
+			spath.insert(path.begin(), path.end());
+			set<CoreParticle*> sf = freeAscent(spath, ndim);
+			BoundingBox bb(sf);
+			float olap = overlapVolume(bb, main_bbox);
+			float ratio = olap / bb.volume();
+			for (vector<CoreParticle*>::iterator jt = path.begin(); jt != path.end(); ++jt)
+			{
+				CoreParticle* r = *jt;
+				printf("%d(%d,%d,%d), ", r->id, r->x, r->y, r->z);
+			}
+			printf("\n\t[%d,%d,%d,]==[%d,%d,%d] --- overlap=%f, bb=%f, rate=%f\n", 
+				bb.minc.m_X, bb.minc.m_Y, bb.minc.m_Z, bb.maxc.m_X, bb.maxc.m_Y, bb.maxc.m_Z,
+				olap, bb.volume(), ratio);
+			if (ratio < thres)
+			{
+				R.push_back(edge);
+			}
+			else
+			{
+				for (int i = 0; i < ed->v->aList.size(); ++i)
+				{
+					Edge<CoreParticle*>* ed2 = ed->v->aList[i];
+					if (onTree(ed2))
+					{
+						vector<Edge<CoreParticle*>*> R2 = separationFromMainBranch6(ed2, main_bbox, thres, ndim);
+						R.insert(R.end(), R2.begin(), R2.end());
+					}
+				}
+			}
+			break;
+		}
+	}
+	return R;
+}
+
 void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[])
 {
 	if (nrhs < 1 || nlhs < 0)
@@ -1488,8 +1706,8 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[])
 	vector<CoreParticle*> selected_core(2);
 	selected_core[0] = closestParticle(particles, vsrc);
 	selected_core[1] = closestParticle(particles, vsink);
-	selected_core[0] = descendUntilCore(selected_core[0]);
-	selected_core[1] = descendUntilCore(selected_core[1]);
+	//selected_core[0] = descendUntilCore(selected_core[0]);
+	//selected_core[1] = descendUntilCore(selected_core[1]);
 
 	vector<int> S2(nvoxels, 0);
 	vector<Vertex<CoreParticle*>*> vertices = makeGraphStructure(mp, S2, selected_core, ndimL, dimsL);
@@ -1509,10 +1727,18 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[])
 		}
 	}
 
+	//clear src pointer
+	for (int i = 0; i < particles.size(); ++i)
+	{
+		particles[i]->src = NULL;
+	}
+
 	Vertex<CoreParticle*>* u = sink;
 	vector<Edge<CoreParticle*>*> path;
+	set<CoreParticle*> spath;
 	while (u != src && u != NULL)
 	{
+		spath.insert(u->key);
 		if (u->pi != NULL)
 		{
 			Edge<CoreParticle*>* ed = u->pi->findEdge(u);
@@ -1521,12 +1747,11 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[])
 		}
 		u = u->pi;
 	}
-
-	/*if (src->aList.size() == 1)
-	{
-		src = src->aList[0]->v;
-	}*/
-
+	spath.insert(src->key);
+	BoundingBox main_bbox(freeAscent(spath, ndimL));
+	printf("MainBox: [%d,%d,%d]==[%d,%d,%d]\n",
+		main_bbox.minc.m_X, main_bbox.minc.m_Y, main_bbox.minc.m_Z,
+		main_bbox.maxc.m_X, main_bbox.maxc.m_Y, main_bbox.maxc.m_Z);
 	vector<Edge<CoreParticle*>*> main_branch;
 	Edge<CoreParticle*>* retain;
 	for (int i = 0; i < src->aList.size(); ++i)
@@ -1542,10 +1767,55 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[])
 			}
 		}
 	}
+
+	/*{
+		//for debugging
+		Vertex<CoreParticle*>* u = NULL;
+		for (int i = 0; i < vertices.size(); ++i)
+		{
+			if (vertices[i]->key->id == 14275)
+			{
+				u = vertices[i];
+				break;
+			}
+		}
+		printf("%x\n", src->pi);
+		src->pi = NULL;
+		while (u->pi != NULL)
+		{
+			set<CoreParticle*> sp;
+			sp.insert(u->key);
+			sp.insert(u->pi->key);
+			set<CoreParticle*> sp2 = freeAscent(sp, ndimL);
+			BoundingBox bb(sp2);
+			float olap = overlapVolume(bb, main_bbox);
+			printf("DBG:: %d (%d, %d, %d) - %d (%d, %d, %d), %f, %f\n", 
+				u->key->id, u->key->x, u->key->y, u->key->z, 
+				u->pi->key->id, u->pi->key->x, u->pi->key->y, u->pi->key->z,
+				olap, bb.volume()); 
+			u = u->pi;
+		}
+	}*/
+
+	/*//for testing
+	for (int i = 0; i < path.size(); ++i)
+	{
+		//vector<Edge<CoreParticle*>*> cut = separationFromMainBranch6(path[i], main_bbox, cutoff_thres, ndimL);
+		set<CoreParticle*> sp;
+		sp.insert(path[i]->u->key);
+		sp.insert(path[i]->v->key);
+		set<CoreParticle*> spa = freeAscent(sp, ndimL);
+		BoundingBox bb(spa);
+		float ol = overlapVolume(bb, main_bbox);
+		printf("path (%d,%d,%d) - (%d,%d,%d), %f, %f\n", path[i]->u->key->x, path[i]->u->key->y, path[i]->u->key->z,
+			path[i]->v->key->x, path[i]->v->key->y, path[i]->v->key->z,
+			ol, bb.volume());
+	}*/
+
 	set<Edge<CoreParticle*>*> toremove;
 	printf("src = (%d,%d,%d), sink=(%d,%d,%d)\n", src->key->x, src->key->y, src->key->z, sink->key->x, sink->key->y, sink->key->z);
 	vector<Edge<CoreParticle*>*> edge_list = src->aList;
-	edge_list.insert(edge_list.end(), retain->v->aList.begin(), retain->v->aList.end());
+	//edge_list.insert(edge_list.end(), retain->v->aList.begin(), retain->v->aList.end());
 	for (int i = 0; i < edge_list.size(); ++i)
 	{
 		Edge<CoreParticle*>* ed = edge_list[i];
@@ -1563,7 +1833,12 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[])
 				toremove.insert(ed);
 				ed->type = (EdgeType)0;
 			}*/
-			vector<Edge<CoreParticle*>*> cut = separationFromMainBranch5(ed, path, cutoff_thres);
+			//vector<Edge<CoreParticle*>*> cut = separationFromMainBranch5(ed, path, cutoff_thres);
+			if (ed == retain)
+			{
+				i += 0;
+			}
+			vector<Edge<CoreParticle*>*> cut = separationFromMainBranch6(ed, main_bbox, cutoff_thres, ndimL);
 			if (ed == retain)
 			{
 				printf("main branch (%d, %d):: %d to cut\n", path.size(), branch.size(), cut.size());
